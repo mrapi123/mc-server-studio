@@ -26,12 +26,14 @@ function isShaderPackPath(filePath) {
 }
 
 /**
- * Saf istemci / render / UI / ses / harita-görsel modları.
- * İstemci senkronu bunları sunucuya koyarsa CONSTRUCT aşamasında çöker
- * (stop_rendering, audioimprovements, particle_core, …).
+ * Sadece sunucuyu kesinlikle düşüren / eksik bağımlılıklı render modları.
+ * Kullanıcı: istemciyle aynı liste — genelde silme/atlamıyoruz.
+ * (Forge zaten işaretli client-only jar'ları kendi atlar.)
  */
-const CLIENT_ONLY_RE =
-  /sodium|iris|rubidium|embeddium|oculus|optifine|xenon|colorwheel|entityculling|fancymenu|dynamic.?fps|skinlayers|sound.?physics|lambdynamic|citresewn|continuity|blur-|zoomify|screenshot|modernfix|f3(name)?|drippy|presencefootsteps|notenoughcrashes|betterf3|crash.?assistant|immediatelyfast|freecam|firstperson|mouse.?tweaks|itemzoom|controlling|catalogue|toastcontrol|light.?overlay|dynamiclights|sodiumoptions|entity.?model.?features|entity.?texture.?features|reeses.?sodium|subtle.?effects|distanthorizons|stop.?rendering|audio.?improvements|particle.?core|particle.?effects|overflowing.?bars|pickup.?notifier|stylish.?effects|visual.?workbench|euphoria|server.?browser|fast.?ip.?ping|fastipping|just.?zoom|melody|rebind.?narrator|reset.?controls|mindful.?darkness|resource.?pack.?overrides|pack.?analytics|sdrp|discord.?rich|yungs.?menu|searchables|immersive.?tips|watut|smooth.?movement|puffish.?biome|underlay|wakes|transparent|vanillin|ok.?zoomer|appleskin|ixeris/i;
+function isKnownClientOnlyJar(fileName) {
+  const n = String(fileName || '');
+  return /stop.?rendering|audio.?improvements|subtle.?effects|colorwheel|sodium|iris|rubidium|embeddium|oculus|optifine|xenon|particle.?core/i.test(n);
+}
 
 /** Sunucu resource-pack URL'sine asla konmaması gereken paket adları (harita ikonu vb.). */
 const SKIP_SERVER_RP_NAME_RE =
@@ -45,66 +47,29 @@ function shouldInstallMrpackFile(file) {
   if (file.env && file.env.server === 'unsupported') {
     if (low.startsWith('mods/')) {
       const base = path.basename(low);
-      // Bilinen saf istemci modlarını atla; diğerlerini (animasyon vb.) sunucuya koy
-      return !CLIENT_ONLY_RE.test(base);
+      // Yalnızca hard-crash render; animasyon/UI kanalı olanlar (watut/wakes) kalsın
+      return !isKnownClientOnlyJar(base);
     }
     return true;
   }
   return true;
 }
 
-function isKnownClientOnlyJar(fileName) {
-  return CLIENT_ONLY_RE.test(String(fileName || ''));
-}
-
 /**
  * JAR meta — yalnızca saf Fabric/Quilt (Forge toml yok) ve environment=client.
  * Forge jar'larında clientSideOnly / fabric.mod.json yanıltıcı (Krypton, Sparse Structures…).
  */
-function isClientOnlyByJarMeta(jarPath) {
-  try {
-    const AdmZip = require('adm-zip');
-    const zip = new AdmZip(jarPath);
-    if (zip.getEntry('META-INF/mods.toml') || zip.getEntry('META-INF/neoforge.mods.toml')) {
-      return false;
-    }
-    for (const name of ['fabric.mod.json', 'quilt.mod.json']) {
-      const e = zip.getEntry(name);
-      if (!e) continue;
-      const j = JSON.parse(e.getData().toString('utf8'));
-      if (String(j.environment || '').toLowerCase() === 'client') return true;
-    }
-  } catch (_e) { /* bozuk jar */ }
+function isClientOnlyByJarMeta(_jarPath) {
+  // Kullanıcı: hepsini indir, silme — meta ile silme kapalı
   return false;
 }
 
-/** mods klasöründen bilinen / meta ile istemci-only jar'ları siler. */
-async function purgeClientOnlyMods(serverDir) {
-  const modsDir = path.join(serverDir, 'mods');
-  let removed = [];
-  let names;
-  try {
-    names = await fsp.readdir(modsDir);
-  } catch (_e) {
-    return removed;
-  }
-  for (const name of names) {
-    // .disabled yedekleri de temizle
-    const base = name.replace(/\.disabled$/i, '');
-    if (!/\.jar$/i.test(base) && !/\.jar\.disabled$/i.test(name)) continue;
-    if (!/\.jar/i.test(name)) continue;
-    const full = path.join(modsDir, name);
-    let drop = isKnownClientOnlyJar(name) || isKnownClientOnlyJar(base);
-    if (!drop && /\.jar$/i.test(name) && !/\.disabled$/i.test(name)) {
-      drop = isClientOnlyByJarMeta(full);
-    }
-    if (!drop) continue;
-    try {
-      await fsp.unlink(full);
-      removed.push(name);
-    } catch (_e) { /* kilitli olabilir */ }
-  }
-  return removed;
+/**
+ * Artık otomatik silmez (mod kanalı uyumsuzluğu / "server missing mods" önlemek için).
+ * Hard-crash listesine dokunmak için bilerek boş bırakıldı.
+ */
+async function purgeClientOnlyMods(_serverDir) {
+  return [];
 }
 
 /** CurseForge classId → hedef klasör (mods / resourcepacks / shaderpacks). */
