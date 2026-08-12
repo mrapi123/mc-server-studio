@@ -4,7 +4,6 @@ const fsp = require('fs/promises');
 const http = require('http');
 const os = require('os');
 const path = require('path');
-const mods = require('./mods');
 
 const CLASS_RESOURCE_PACKS = 12;
 const CLASS_SHADER_PACKS = 6552;
@@ -26,11 +25,23 @@ function isShaderPackPath(filePath) {
   return norm.startsWith('shaderpacks/') || /(^|\/)shaderpacks\//.test(norm);
 }
 
-/** Modrinth: sunucu-unsupported olsa bile resource/shader pack'leri kur. */
+/** Modrinth: resource pack'leri her zaman al; client-only render modlarını atla, animasyon modlarını tut. */
+const CLIENT_ONLY_RE =
+  /sodium|iris|rubidium|embeddium|oculus|optifine|entityculling|fancymenu|dynamic.?fps|skinlayers|sound.?physics|lambdynamic|citresewn|continuity|oculus|blur-|zoomify|screenshot|modernfix|f3(name)?|drippy|presencefootsteps|notenoughcrashes|betterf3/i;
+
 function shouldInstallMrpackFile(file) {
-  const p = file.path || '';
-  if (isResourcePackPath(p) || isShaderPackPath(p)) return true;
-  if (file.env && file.env.server === 'unsupported') return false;
+  const p = String(file.path || '').replace(/\\/g, '/');
+  const low = p.toLowerCase();
+  if (isResourcePackPath(p)) return true;
+  if (isShaderPackPath(p)) return false;
+  if (file.env && file.env.server === 'unsupported') {
+    if (low.startsWith('mods/')) {
+      const base = path.basename(low);
+      // Bilinen saf istemci modlarını atla; diğerlerini (animasyon vb.) sunucuya koy
+      return !CLIENT_ONLY_RE.test(base);
+    }
+    return true;
+  }
   return true;
 }
 
@@ -128,7 +139,7 @@ async function prepareServerResourcePack(instanceId, serverDir, log = () => {}) 
   const url = `http://${ip}:${port}/pack.zip`;
   servers.set(instanceId, { server, port, fileName: pack.name, url, sha1 });
 
-  await mods.setProperties(instanceId, {
+  await writeServerProperties(serverDir, {
     'resource-pack': url,
     'resource-pack-sha1': sha1,
     'require-resource-pack': 'false'
@@ -139,6 +150,29 @@ async function prepareServerResourcePack(instanceId, serverDir, log = () => {}) 
     log(`Not: ${packs.length} resource pack var; sunucu paketi olarak en büyüğü seçildi (${pack.name}).\n`);
   }
   return { url, sha1, fileName: pack.name, port, count: packs.length };
+}
+
+async function writeServerProperties(serverDir, updates) {
+  const file = path.join(serverDir, 'server.properties');
+  let lines = [];
+  if (fs.existsSync(file)) {
+    lines = (await fsp.readFile(file, 'utf8')).split(/\r?\n/);
+  }
+  const remaining = { ...updates };
+  lines = lines.map((line) => {
+    if (!line || line.startsWith('#')) return line;
+    const idx = line.indexOf('=');
+    if (idx <= 0) return line;
+    const key = line.slice(0, idx);
+    if (key in remaining) {
+      const val = remaining[key];
+      delete remaining[key];
+      return `${key}=${val}`;
+    }
+    return line;
+  });
+  for (const [k, v] of Object.entries(remaining)) lines.push(`${k}=${v}`);
+  await fsp.writeFile(file, lines.join('\n'));
 }
 
 function hashCode(str) {

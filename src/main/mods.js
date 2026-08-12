@@ -2,12 +2,15 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
 const { downloadFile } = require('./util');
-const instances = require('./instances');
 const modrinth = require('./modrinth');
 const curseforge = require('./curseforge');
 
+function instances() {
+  return require('./instances');
+}
+
 function modsDir(instanceId) {
-  return path.join(instances.serverDir(instanceId), 'mods');
+  return path.join(instances().serverDir(instanceId), 'mods');
 }
 
 async function listMods(instanceId) {
@@ -79,7 +82,7 @@ async function deleteMod(instanceId, fileName) {
 /* ---------------- server.properties ---------------- */
 
 function propsPath(instanceId) {
-  return path.join(instances.serverDir(instanceId), 'server.properties');
+  return path.join(instances().serverDir(instanceId), 'server.properties');
 }
 
 async function getProperties(instanceId) {
