@@ -26,11 +26,12 @@ function isShaderPackPath(filePath) {
 }
 
 /**
- * Saf istemci / render modları — sunucuya konursa bağımlılık zinciri kırılır
- * (örn. colorwheel → oculus; subtle_effects → daha yeni Forge ister).
+ * Saf istemci / render / UI / ses / harita-görsel modları.
+ * İstemci senkronu bunları sunucuya koyarsa CONSTRUCT aşamasında çöker
+ * (stop_rendering, audioimprovements, particle_core, …).
  */
 const CLIENT_ONLY_RE =
-  /sodium|iris|rubidium|embeddium|oculus|optifine|xenon|colorwheel|entityculling|fancymenu|dynamic.?fps|skinlayers|sound.?physics|lambdynamic|citresewn|continuity|blur-|zoomify|screenshot|modernfix|f3(name)?|drippy|presencefootsteps|notenoughcrashes|betterf3|crash.?assistant|immediatelyfast|freecam|firstperson|mouse.?tweaks|itemzoom|controlling|catalogue|toastcontrol|light.?overlay|dynamiclights|sodiumoptions|entity.?model.?features|entity.?texture.?features|reeses.?sodium|subtle.?effects|distanthorizons|oculus|iris/i;
+  /sodium|iris|rubidium|embeddium|oculus|optifine|xenon|colorwheel|entityculling|fancymenu|dynamic.?fps|skinlayers|sound.?physics|lambdynamic|citresewn|continuity|blur-|zoomify|screenshot|modernfix|f3(name)?|drippy|presencefootsteps|notenoughcrashes|betterf3|crash.?assistant|immediatelyfast|freecam|firstperson|mouse.?tweaks|itemzoom|controlling|catalogue|toastcontrol|light.?overlay|dynamiclights|sodiumoptions|entity.?model.?features|entity.?texture.?features|reeses.?sodium|subtle.?effects|distanthorizons|stop.?rendering|audio.?improvements|particle.?core|particle.?effects|overflowing.?bars|pickup.?notifier|stylish.?effects|visual.?workbench|euphoria|server.?browser|fast.?ip.?ping|fastipping|just.?zoom|melody|rebind.?narrator|reset.?controls|mindful.?darkness|resource.?pack.?overrides|pack.?analytics|sdrp|discord.?rich|yungs.?menu|searchables|immersive.?tips|watut|smooth.?movement|puffish.?biome|underlay|wakes|transparent|vanillin|ok.?zoomer|appleskin|ixeris/i;
 
 /** Sunucu resource-pack URL'sine asla konmaması gereken paket adları (harita ikonu vb.). */
 const SKIP_SERVER_RP_NAME_RE =
@@ -56,7 +57,28 @@ function isKnownClientOnlyJar(fileName) {
   return CLIENT_ONLY_RE.test(String(fileName || ''));
 }
 
-/** mods klasöründen bilinen istemci-only jar'ları siler (kısmi kurulum / eski sync temizliği). */
+/**
+ * JAR meta — yalnızca saf Fabric/Quilt (Forge toml yok) ve environment=client.
+ * Forge jar'larında clientSideOnly / fabric.mod.json yanıltıcı (Krypton, Sparse Structures…).
+ */
+function isClientOnlyByJarMeta(jarPath) {
+  try {
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip(jarPath);
+    if (zip.getEntry('META-INF/mods.toml') || zip.getEntry('META-INF/neoforge.mods.toml')) {
+      return false;
+    }
+    for (const name of ['fabric.mod.json', 'quilt.mod.json']) {
+      const e = zip.getEntry(name);
+      if (!e) continue;
+      const j = JSON.parse(e.getData().toString('utf8'));
+      if (String(j.environment || '').toLowerCase() === 'client') return true;
+    }
+  } catch (_e) { /* bozuk jar */ }
+  return false;
+}
+
+/** mods klasöründen bilinen / meta ile istemci-only jar'ları siler. */
 async function purgeClientOnlyMods(serverDir) {
   const modsDir = path.join(serverDir, 'mods');
   let removed = [];
@@ -67,10 +89,18 @@ async function purgeClientOnlyMods(serverDir) {
     return removed;
   }
   for (const name of names) {
-    if (!/\.jar$/i.test(name)) continue;
-    if (!isKnownClientOnlyJar(name)) continue;
+    // .disabled yedekleri de temizle
+    const base = name.replace(/\.disabled$/i, '');
+    if (!/\.jar$/i.test(base) && !/\.jar\.disabled$/i.test(name)) continue;
+    if (!/\.jar/i.test(name)) continue;
+    const full = path.join(modsDir, name);
+    let drop = isKnownClientOnlyJar(name) || isKnownClientOnlyJar(base);
+    if (!drop && /\.jar$/i.test(name) && !/\.disabled$/i.test(name)) {
+      drop = isClientOnlyByJarMeta(full);
+    }
+    if (!drop) continue;
     try {
-      await fsp.unlink(path.join(modsDir, name));
+      await fsp.unlink(full);
       removed.push(name);
     } catch (_e) { /* kilitli olabilir */ }
   }
