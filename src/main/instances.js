@@ -32,10 +32,16 @@ async function listInstances() {
   }
   const out = [];
   for (const d of dirs) {
+    const dir = path.join(root, d);
     try {
-      const meta = JSON.parse(await fsp.readFile(path.join(root, d, 'instance.json'), 'utf8'));
+      const meta = JSON.parse(await fsp.readFile(path.join(dir, 'instance.json'), 'utf8'));
       out.push(meta);
-    } catch (_e) { /* bozuk klasörü atla */ }
+    } catch (_e) {
+      // Yarım kalmış klasör (meta yok) — çöp temizliği
+      try {
+        await fsp.rm(dir, { recursive: true, force: true });
+      } catch (_e2) { /* ignore */ }
+    }
   }
   return out.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
@@ -202,6 +208,12 @@ async function finalizeInstall(meta, sDir, report) {
   } catch (_e) { /* loader kurulumu gerekiyor */ }
 
   if (!launchReady) {
+    if (!meta.loader || !meta.mcVersion) {
+      throw new Error(
+        'Sunucu paketi eksik veya bozuk (jar bulunamadı). ' +
+        'Büyük indirmeler kesilmiş olabilir — sunucuyu silip tekrar kur.'
+      );
+    }
     const result = await loaders.installLoader(
       sDir,
       { loader: meta.loader, mcVersion: meta.mcVersion, loaderVersion: meta.loaderVersion },
@@ -211,12 +223,22 @@ async function finalizeInstall(meta, sDir, report) {
     if (result.loaderVersion) meta.loaderVersion = result.loaderVersion;
   }
 
+  // Kurulum gerçekten başlatılabilir mi?
+  try {
+    loaders.resolveLaunch(sDir, meta.memoryMb);
+  } catch (err) {
+    throw new Error(
+      'Kurulum tamamlanamadı: ' + err.message
+    );
+  }
+
   // EULA
   if (meta.eulaAccepted) {
     await fsp.writeFile(path.join(sDir, 'eula.txt'), 'eula=true\n');
   }
 
   meta.status = 'ready';
+  meta.error = null;
   await saveInstance(meta);
   report('Kurulum tamamlandı!');
   return meta;
@@ -242,9 +264,21 @@ async function createInstance(payload, report) {
     createdAt: new Date().toISOString(),
     status: 'installing'
   };
+  await saveInstance(meta);
 
   try {
-    if (payload.source === 'modrinth') {
+    if (payload.source === 'vanilla') {
+      const mcVersion = payload.mcVersion;
+      if (!mcVersion) throw new Error('Minecraft sürümü seçilmedi.');
+      report(`Vanilla sunucu kuruluyor (MC ${mcVersion})...`);
+      meta.mcVersion = mcVersion;
+      meta.loader = 'vanilla';
+      meta.loaderVersion = null;
+      meta.packName = `Vanilla ${mcVersion}`;
+      meta.packVersion = mcVersion;
+      meta.failedMods = [];
+      // Loader kurulumu finalizeInstall içinde yapılır
+    } else if (payload.source === 'modrinth') {
       report('Modpack indiriliyor...');
       const versions = await modrinth.getPackVersions(payload.projectId);
       const version = versions.find((v) => v.id === payload.versionId) || versions[0];
@@ -301,9 +335,10 @@ async function createInstance(payload, report) {
     return await finalizeInstall(meta, sDir, report);
   } catch (err) {
     meta.status = 'failed';
-    meta.error = err.message;
+    const msg = err && err.message ? err.message : String(err);
+    meta.error = msg;
     await saveInstance(meta).catch(() => {});
-    throw err;
+    throw new Error(msg);
   }
 }
 

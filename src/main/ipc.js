@@ -8,6 +8,7 @@ const javaMgr = require('./java');
 const settings = require('./settings');
 const players = require('./players');
 const network = require('./network');
+const loaders = require('./loaders');
 
 function registerIpc(getWindow) {
   const send = (channel, data) => {
@@ -31,9 +32,15 @@ function registerIpc(getWindow) {
     return modrinth.getPackVersions(projectId);
   });
 
+  ipcMain.handle('mc:versions', async () => loaders.listMinecraftVersions());
+
   /* ---- instance ---- */
   ipcMain.handle('instances:create', async (_e, payload) => {
-    return instances.createInstance(payload, progressReporter(payload.progressKey || 'create'));
+    try {
+      return await instances.createInstance(payload, progressReporter(payload.progressKey || 'create'));
+    } catch (err) {
+      throw new Error(err && err.message ? err.message : String(err));
+    }
   });
 
   ipcMain.handle('instances:import-file', async (_e, payload) => {

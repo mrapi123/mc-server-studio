@@ -4,6 +4,20 @@ const fsp = require('fs/promises');
 const path = require('path');
 const { fetchJson, downloadFile } = require('./util');
 
+let manifestCache = null;
+
+/** Mojang'dan release MC sürümlerini listeler (vanilla kurulum için). */
+async function listMinecraftVersions() {
+  if (!manifestCache) {
+    manifestCache = await fetchJson('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json');
+  }
+  const releases = manifestCache.versions.filter((v) => v.type === 'release');
+  return {
+    latest: manifestCache.latest.release,
+    versions: releases.map((v) => v.id)
+  };
+}
+
 function runJava(javaExe, args, cwd) {
   return new Promise((resolve, reject) => {
     execFile(javaExe, args, { cwd, timeout: 15 * 60 * 1000, maxBuffer: 64 * 1024 * 1024 }, (err, stdout, stderr) => {
@@ -109,24 +123,45 @@ async function installLoader(serverDir, { loader, mcVersion, loaderVersion }, ja
 function resolveLaunch(serverDir, memoryMb) {
   const mem = [`-Xms${Math.min(2048, memoryMb)}M`, `-Xmx${memoryMb}M`];
 
-  // Forge / NeoForge modern kurulum: libraries altındaki win_args.txt
-  const argFiles = [];
-  for (const vendor of ['net/neoforged/neoforge', 'net/minecraftforge/forge']) {
-    const base = path.join(serverDir, 'libraries', ...vendor.split('/'));
-    if (fs.existsSync(base)) {
-      for (const ver of fs.readdirSync(base)) {
-        const argFile = path.join(base, ver, 'win_args.txt');
-        if (fs.existsSync(argFile)) argFiles.push(argFile);
+  function findArgFiles(dir, depth = 0) {
+    if (depth > 6 || !fs.existsSync(dir)) return [];
+    const found = [];
+    let entries = [];
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch (_e) { return []; }
+    for (const ent of entries) {
+      const p = path.join(dir, ent.name);
+      if (ent.isFile() && /^(win_args|unix_args|args)\.txt$/i.test(ent.name)) found.push(p);
+      else if (ent.isDirectory() && ent.name !== 'mods' && ent.name !== 'world') {
+        found.push(...findArgFiles(p, depth + 1));
       }
     }
+    return found;
   }
-  if (argFiles.length) {
-    const rel = path.relative(serverDir, argFiles[0]);
+
+  // Forge / NeoForge: libraries altındaki win_args.txt (veya run.bat eşdeğeri)
+  const argFiles = findArgFiles(path.join(serverDir, 'libraries'));
+  // Prefer win_args on Windows
+  const winArg = argFiles.find((f) => /win_args\.txt$/i.test(f)) || argFiles[0];
+  if (winArg) {
+    const rel = path.relative(serverDir, winArg);
     return { args: [...mem, `@${rel}`, 'nogui'] };
+  }
+
+  // run.bat içinden @libraries\...\win_args.txt yakala
+  const runBat = path.join(serverDir, 'run.bat');
+  if (fs.existsSync(runBat)) {
+    try {
+      const bat = fs.readFileSync(runBat, 'utf8');
+      const m = /@([^\s"']+args\.txt)/i.exec(bat);
+      if (m && fs.existsSync(path.join(serverDir, m[1].replace(/\//g, path.sep)))) {
+        return { args: [...mem, `@${m[1]}`, 'nogui'] };
+      }
+    } catch (_e) { /* ignore */ }
   }
 
   const jarCandidates = [
     'fabric-server.jar',
+    'fabric-server-launch.jar',
     'quilt-server-launch.jar',
     'server.jar'
   ];
@@ -136,15 +171,20 @@ function resolveLaunch(serverDir, memoryMb) {
     }
   }
 
-  // Eski Forge: forge-*.jar (installer olmayan)
-  const files = fs.readdirSync(serverDir);
-  const forgeJar = files.find((f) => /^forge-.*\.jar$/i.test(f) && !f.includes('installer'));
-  if (forgeJar) return { args: [...mem, '-jar', forgeJar, 'nogui'] };
+  const files = fs.existsSync(serverDir) ? fs.readdirSync(serverDir) : [];
+  const named = files.find((f) =>
+    /^(forge|neoforge|minecraft_server|paper|purpur|spigot|bukkit).*\.jar$/i.test(f) &&
+    !/installer/i.test(f)
+  );
+  if (named) return { args: [...mem, '-jar', named, 'nogui'] };
 
-  const anyJar = files.find((f) => f.endsWith('.jar') && !f.includes('installer'));
+  const anyJar = files.find((f) => f.endsWith('.jar') && !/installer/i.test(f));
   if (anyJar) return { args: [...mem, '-jar', anyJar, 'nogui'] };
 
-  throw new Error('Başlatılacak sunucu jar dosyası bulunamadı. Kurulum eksik olabilir.');
+  throw new Error(
+    'Başlatılacak sunucu jar dosyası bulunamadı. Kurulum yarım kalmış olabilir ' +
+    '(özellikle büyük modpack indirmeleri). Sunucuyu silip tekrar kurmayı dene.'
+  );
 }
 
-module.exports = { installLoader, resolveLaunch };
+module.exports = { installLoader, resolveLaunch, listMinecraftVersions };

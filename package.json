@@ -1,7 +1,7 @@
 {
   "name": "mc-server-studio",
   "productName": "MC Server Studio",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Modrinth ve CurseForge modpack destekli Minecraft sunucu yöneticisi",
   "main": "src/main/main.js",
   "author": "Mehmet",
@@ -20,7 +20,8 @@
     "test:smoke": "node tests/smoke-test.js",
     "test:e2e": "electron tests/test-e2e.js",
     "test:cf": "electron tests/test-cf.js",
-    "test:players": "electron tests/test-players.js"
+    "test:players": "electron tests/test-players.js",
+    "test:vanilla": "electron tests/test-vanilla.js"
   },
   "dependencies": {
     "adm-zip": "^0.5.16"

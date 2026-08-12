@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('api', {
   // modpack arama / sürümler
   searchPacks: invoke('packs:search'),
   getPackVersions: invoke('packs:versions'),
+  listMcVersions: invoke('mc:versions'),
 
   // instance yönetimi
   createInstance: invoke('instances:create'),

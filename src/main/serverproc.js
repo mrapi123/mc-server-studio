@@ -69,8 +69,41 @@ async function start(id) {
     throw new Error('Sunucu zaten çalışıyor.');
   }
   const meta = await instances.getInstance(id);
+  if (meta.status === 'installing') {
+    throw new Error('Kurulum henüz bitmedi. Bitmesini bekle veya yarım kaldıysa silip tekrar kur.');
+  }
+  if (meta.status === 'failed') {
+    throw new Error(
+      'Kurulum başarısız olmuş: ' + (meta.error || 'bilinmiyor') +
+      ' Sunucuyu silip yeniden kurmayı dene.'
+    );
+  }
+
   const sDir = instances.serverDir(id);
-  const { args } = loaders.resolveLaunch(sDir, meta.memoryMb || 4096);
+  let launch;
+  try {
+    launch = loaders.resolveLaunch(sDir, meta.memoryMb || 4096);
+  } catch (err) {
+    // Loader bilgisi varsa onarım dene
+    if (meta.loader && meta.mcVersion) {
+      try {
+        const java = meta.javaPath || 'java';
+        await loaders.installLoader(
+          sDir,
+          { loader: meta.loader, mcVersion: meta.mcVersion, loaderVersion: meta.loaderVersion },
+          java,
+          () => {}
+        );
+        launch = loaders.resolveLaunch(sDir, meta.memoryMb || 4096);
+      } catch (_e2) {
+        throw new Error(err.message);
+      }
+    } else {
+      throw err;
+    }
+  }
+
+  const { args } = launch;
   const javaExe = meta.javaPath || 'java';
 
   const proc = spawn(javaExe, args, { cwd: sDir, windowsHide: true });

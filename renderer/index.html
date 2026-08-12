@@ -83,6 +83,7 @@
         <div class="tabs" id="source-tabs">
           <button class="tab active" data-source="modrinth"><span class="tab-dot modrinth"></span>Modrinth</button>
           <button class="tab" data-source="curseforge"><span class="tab-dot curseforge"></span>CurseForge</button>
+          <button class="tab" data-source="vanilla"><span class="tab-dot vanilla"></span>Vanilla (Modsuz)</button>
           <button class="tab" data-source="file"><svg class="tab-svg"><use href="#i-file"/></svg>Dosyadan İçe Aktar</button>
         </div>
 
@@ -95,6 +96,35 @@
             <button id="btn-search" class="btn btn-primary">Ara</button>
           </div>
           <div id="search-results" class="card-grid"></div>
+        </div>
+
+        <div id="vanilla-panel" class="hidden">
+          <div class="vanilla-box panel-card">
+            <div class="panel-title"><svg><use href="#i-server"/></svg><h3>Modsuz Minecraft Sunucusu</h3></div>
+            <p class="muted">Resmi Minecraft sunucusunu kurar. Mod / loader yok — sadece vanilla.</p>
+            <div class="form-row">
+              <label>Minecraft sürümü
+                <select id="vanilla-version"><option>Yükleniyor...</option></select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label>Sunucu adı
+                <input id="vanilla-name" type="text" value="Vanilla Sunucu" />
+              </label>
+            </div>
+            <div class="form-row">
+              <label>RAM (MB)
+                <input id="vanilla-memory" type="number" value="2048" min="1024" step="512" />
+              </label>
+            </div>
+            <label class="checkbox-label">
+              <input id="vanilla-eula" type="checkbox" checked />
+              <span>Mojang EULA'yı kabul ediyorum</span>
+            </label>
+            <button id="btn-vanilla-install" class="btn btn-primary btn-lg">
+              <svg><use href="#i-download"/></svg> Vanilla Sunucu Kur
+            </button>
+          </div>
         </div>
 
         <div id="file-panel" class="hidden">
@@ -408,13 +438,10 @@
         <button class="tab active" data-source="modrinth"><span class="tab-dot modrinth"></span>Modrinth</button>
         <button class="tab" data-source="curseforge"><span class="tab-dot curseforge"></span>CurseForge</button>
       </div>
-      <div class="search-row">
-        <div class="search-box">
-          <svg><use href="#i-search"/></svg>
-          <input id="mod-search-input" type="text" placeholder="Mod ara... (örn. JEI)" />
-        </div>
-        <button id="btn-mod-search" class="btn btn-primary">Ara</button>
-      </div>
+          <div class="search-row">
+            <input id="mod-search-input" class="mod-search-field" type="text" placeholder="Mod ara... (örn. JEI)" autocomplete="off" spellcheck="false" />
+            <button id="btn-mod-search" class="btn btn-primary">Ara</button>
+          </div>
       <p class="muted small" id="mod-filter-info"></p>
       <div id="mod-search-results" class="mod-results"></div>
       <div class="modal-actions">

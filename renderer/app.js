@@ -32,6 +32,10 @@ function toast(message, isError = false) {
   setTimeout(() => el.remove(), isError ? 8000 : 4000);
 }
 
+function errMsg(err) {
+  return String(err?.message || err).replace(/^Error invoking remote method '[^']+':\s*/i, '');
+}
+
 function bindImgFallback(container) {
   container.querySelectorAll('img').forEach((img) => {
     if (!img.getAttribute('src')) img.style.visibility = 'hidden';
@@ -108,8 +112,52 @@ async function refreshInstances() {
 function switchCreateSource(source) {
   state.createSource = source;
   $$('#source-tabs .tab').forEach((t) => t.classList.toggle('active', t.dataset.source === source));
-  $('#search-panel').classList.toggle('hidden', source === 'file');
+  $('#search-panel').classList.toggle('hidden', source === 'file' || source === 'vanilla');
   $('#file-panel').classList.toggle('hidden', source !== 'file');
+  $('#vanilla-panel').classList.toggle('hidden', source !== 'vanilla');
+  if (source === 'vanilla') loadVanillaVersions();
+}
+
+async function loadVanillaVersions() {
+  const sel = $('#vanilla-version');
+  if (sel.dataset.loaded === '1') return;
+  sel.innerHTML = '<option>Yükleniyor...</option>';
+  try {
+    const data = await window.api.listMcVersions();
+    sel.innerHTML = data.versions
+      .slice(0, 80)
+      .map((v) => `<option value="${esc(v)}"${v === data.latest ? ' selected' : ''}>${esc(v)}${v === data.latest ? ' (son sürüm)' : ''}</option>`)
+      .join('');
+    sel.dataset.loaded = '1';
+    $('#vanilla-name').value = `Vanilla ${data.latest}`;
+  } catch (err) {
+    sel.innerHTML = `<option value="">Hata: ${esc(err.message)}</option>`;
+  }
+}
+
+async function startVanillaInstall() {
+  const mcVersion = $('#vanilla-version').value;
+  if (!mcVersion) return toast('Minecraft sürümü seç.', true);
+  if (!$('#vanilla-eula').checked) return toast('Sunucu açmak için Mojang EULA kabul edilmeli.', true);
+
+  beginInstallUI(`Vanilla ${mcVersion} kuruluyor...`);
+  try {
+    const inst = await window.api.createInstance({
+      source: 'vanilla',
+      mcVersion,
+      name: $('#vanilla-name').value.trim() || `Vanilla ${mcVersion}`,
+      memoryMb: Number($('#vanilla-memory').value) || 2048,
+      eulaAccepted: true
+    });
+    finishInstallUI();
+    await refreshInstances();
+    openInstance(inst.id);
+    toast('Vanilla sunucu kuruldu!');
+  } catch (err) {
+    finishInstallUI();
+    showView('create');
+    toast('Kurulum başarısız: ' + errMsg(err), true);
+  }
 }
 
 async function doSearch() {
@@ -207,7 +255,7 @@ async function startInstall() {
   } catch (err) {
     finishInstallUI();
     showView('create');
-    toast('Kurulum başarısız: ' + err.message, true);
+    toast('Kurulum başarısız: ' + errMsg(err), true);
   }
 }
 
@@ -231,7 +279,7 @@ async function importFromFile() {
   } catch (err) {
     finishInstallUI();
     showView('create');
-    toast('Kurulum başarısız: ' + err.message, true);
+    toast('Kurulum başarısız: ' + errMsg(err), true);
   }
 }
 
@@ -278,7 +326,8 @@ async function openInstance(id) {
   // uyarılar
   const warn = $('#inst-warning');
   const warnings = [];
-  if (inst.status === 'failed') warnings.push('Kurulum hatası: ' + esc(inst.error || 'bilinmiyor'));
+  if (inst.status === 'failed') warnings.push('Kurulum hatası: ' + esc(inst.error || 'bilinmiyor') + ' — silip yeniden kur.');
+  if (inst.status === 'installing') warnings.push('Kurulum yarım kalmış görünüyor. Silip tekrar kurmayı dene.');
   if (!inst.eulaAccepted) warnings.push('Mojang EULA kabul edilmedi — Ayarlar sekmesinden onaylamadan sunucu açılmaz.');
   if (inst.failedMods && inst.failedMods.length) {
     const names = inst.failedMods.map((m) => esc(m.name)).join(', ');
@@ -287,6 +336,8 @@ async function openInstance(id) {
   }
   warn.innerHTML = warnings.join('<br>');
   warn.classList.toggle('hidden', warnings.length === 0);
+
+  $('#btn-start').disabled = inst.status === 'failed' || inst.status === 'installing';
 
   // konsol geçmişini yükle
   const buffer = await window.api.getConsoleBuffer({ id });
@@ -327,9 +378,22 @@ function lineClass(line) {
   if (line.startsWith('> ')) return 'cmd';
   if (line.startsWith('[Sunucu') || line.startsWith('[Hata')) return 'meta';
   if (/ERROR|SEVERE|FATAL|Exception|\tat /.test(line)) return 'error';
+  if (/Can't keep up|Can't keep up!|Running \d+ms or \d+ ticks behind/i.test(line)) return 'lag';
   if (/WARN/.test(line)) return 'warn';
   if (/Done \(/.test(line)) return 'done';
   return '';
+}
+
+let lastLagToastAt = 0;
+function maybeWarnLag(text) {
+  if (!/Can't keep up|ticks behind/i.test(text)) return;
+  const now = Date.now();
+  if (now - lastLagToastAt < 60000) return; // spam engelle
+  lastLagToastAt = now;
+  toast(
+    "Sunucu yavaşlıyor (Can't keep up). RAM artır, Ayarlar → Görüş & Chunk'ı düşür (örn. 8/6), arka plandaki programları kapat.",
+    true
+  );
 }
 
 function appendConsoleLines(text) {
@@ -348,6 +412,7 @@ function appendConsoleLines(text) {
     frag.appendChild(div);
   }
   out.appendChild(frag);
+  maybeWarnLag(text);
 
   while (out.childElementCount > 1500) out.removeChild(out.firstElementChild);
   if (nearBottom) out.scrollTop = out.scrollHeight;
@@ -660,6 +725,11 @@ async function openModModal() {
   $('#mod-search-results').innerHTML = '';
   $('#mod-search-input').value = '';
   $('#modal-mod').classList.remove('hidden');
+  setTimeout(() => {
+    const input = $('#mod-search-input');
+    input.focus();
+    input.select();
+  }, 50);
 }
 
 async function doModSearch() {
@@ -921,6 +991,11 @@ function bind() {
   $('#btn-search').addEventListener('click', doSearch);
   $('#search-input').addEventListener('keydown', (e) => e.key === 'Enter' && doSearch());
   $('#btn-import-file').addEventListener('click', importFromFile);
+  $('#btn-vanilla-install').addEventListener('click', startVanillaInstall);
+  $('#vanilla-version').addEventListener('change', () => {
+    const v = $('#vanilla-version').value;
+    if (v) $('#vanilla-name').value = `Vanilla ${v}`;
+  });
 
   $('#mv-cancel').addEventListener('click', () => $('#modal-version').classList.add('hidden'));
   $('#mv-install').addEventListener('click', startInstall);
@@ -932,7 +1007,7 @@ function bind() {
     try {
       await window.api.startServer({ id: state.currentId });
     } catch (err) {
-      toast(err.message, true);
+      toast(errMsg(err), true);
     }
   });
   $('#btn-stop').addEventListener('click', () => window.api.stopServer({ id: state.currentId }));
@@ -980,7 +1055,15 @@ function bind() {
   $$('#mod-source-tabs .tab').forEach((t) =>
     t.addEventListener('click', () => switchModSource(t.dataset.source)));
   $('#btn-mod-search').addEventListener('click', doModSearch);
-  $('#mod-search-input').addEventListener('keydown', (e) => e.key === 'Enter' && doModSearch());
+  $('#mod-search-input').addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      doModSearch();
+    }
+  });
+  $('#mod-search-input').addEventListener('keyup', (e) => e.stopPropagation());
+  $('#mod-search-input').addEventListener('keypress', (e) => e.stopPropagation());
   $('#mod-close').addEventListener('click', () => $('#modal-mod').classList.add('hidden'));
 
   // ayarlar
