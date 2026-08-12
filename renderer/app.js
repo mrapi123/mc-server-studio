@@ -858,6 +858,8 @@ async function resetWorld() {
 }
 
 async function saveInstanceSettings() {
+  try {
+    await window.api.updateInstance({
       id: state.currentId,
       updates: {
         memoryMb: Number($('#set-memory').value) || 4096,
