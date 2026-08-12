@@ -167,7 +167,9 @@ async function doSearch() {
   try {
     const packs = await window.api.searchPacks({ source: state.createSource, query });
     if (!packs.length) {
-      results.innerHTML = '<p class="muted">Sonuç bulunamadı. Diğer kaynağı da denemeyi unutma.</p>';
+      results.innerHTML = state.createSource === 'modrinth'
+        ? '<p class="muted">Modrinth\'te sonuç yok. <b>CurseForge</b> sekmesini dene (Soulrend orada).</p>'
+        : '<p class="muted">Sonuç bulunamadı.</p>';
       return;
     }
     results.innerHTML = '';
@@ -1056,14 +1058,8 @@ function bind() {
     t.addEventListener('click', () => switchModSource(t.dataset.source)));
   $('#btn-mod-search').addEventListener('click', doModSearch);
   $('#mod-search-input').addEventListener('keydown', (e) => {
-    e.stopPropagation();
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      doModSearch();
-    }
+    if (e.key === 'Enter') doModSearch();
   });
-  $('#mod-search-input').addEventListener('keyup', (e) => e.stopPropagation());
-  $('#mod-search-input').addEventListener('keypress', (e) => e.stopPropagation());
   $('#mod-close').addEventListener('click', () => $('#modal-mod').classList.add('hidden'));
 
   // ayarlar

@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <svg id="icon-sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
     <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 4.5v15l13-7.5z"/></symbol>
@@ -89,11 +89,8 @@
 
         <div id="search-panel">
           <div class="search-row">
-            <div class="search-box">
-              <svg><use href="#i-search"/></svg>
-              <input id="search-input" type="text" placeholder="Modpack ara... (örn. Soulrend)" />
-            </div>
-            <button id="btn-search" class="btn btn-primary">Ara</button>
+            <input id="search-input" class="text-field" type="text" placeholder="Modpack ara... (örn. Soulrend)" autocomplete="off" spellcheck="false" />
+            <button id="btn-search" class="btn btn-primary" type="button">Ara</button>
           </div>
           <div id="search-results" class="card-grid"></div>
         </div>
@@ -440,8 +437,8 @@
         <button class="tab" data-source="curseforge"><span class="tab-dot curseforge"></span>CurseForge</button>
       </div>
           <div class="search-row">
-            <input id="mod-search-input" class="mod-search-field" type="text" placeholder="Mod ara... (örn. JEI)" autocomplete="off" spellcheck="false" />
-            <button id="btn-mod-search" class="btn btn-primary">Ara</button>
+            <input id="mod-search-input" class="text-field" type="text" placeholder="Mod ara... (örn. JEI)" autocomplete="off" spellcheck="false" />
+            <button id="btn-mod-search" class="btn btn-primary" type="button">Ara</button>
           </div>
       <p class="muted small" id="mod-filter-info"></p>
       <div id="mod-search-results" class="mod-results"></div>

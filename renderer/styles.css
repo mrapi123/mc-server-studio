@@ -31,7 +31,14 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; pointer-events: none; }
+
+#icon-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
 
 #app { display: flex; height: 100vh; }
 
@@ -173,7 +180,26 @@ svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width:
 .vanilla-box select:focus, .vanilla-box input:focus { border-color: var(--accent-dark); }
 
 /* Arama */
-.search-row { display: flex; gap: 10px; margin-bottom: 20px; }
+.search-row { display: flex; gap: 10px; margin-bottom: 20px; align-items: stretch; }
+.text-field {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.text-field:focus {
+  border-color: var(--accent-dark);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, .12);
+}
+
 .search-box {
   flex: 1; display: flex; align-items: center; gap: 10px;
   background: var(--bg-2); border: 1px solid var(--border);
@@ -185,16 +211,6 @@ svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width:
 .search-box input {
   flex: 1; background: none; border: none; outline: none;
   padding: 12px 0; color: var(--text); font-size: 14px; font-family: inherit;
-}
-
-.mod-search-field {
-  flex: 1; background: var(--bg-3); border: 1px solid var(--border);
-  border-radius: 12px; padding: 12px 14px; color: var(--text);
-  font-size: 14px; font-family: inherit; outline: none;
-}
-.mod-search-field:focus {
-  border-color: var(--accent-dark);
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, .12);
 }
 
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 13px; }
