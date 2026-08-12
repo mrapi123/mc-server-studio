@@ -343,10 +343,29 @@ async function importPackFile(payload, report) {
   }
 }
 
+/** Dünya klasörlerini siler (yeni seed/dünya tipi için). Sunucu kapalıyken çağrılmalı. */
+async function resetWorld(id) {
+  const sDir = serverDir(id);
+  let levelName = 'world';
+  try {
+    const raw = await fsp.readFile(path.join(sDir, 'server.properties'), 'utf8');
+    const m = /^level-name=(.*)$/m.exec(raw);
+    if (m && m[1].trim()) levelName = m[1].trim();
+  } catch (_e) { /* varsayılan kullan */ }
+
+  const targets = [levelName, `${levelName}_nether`, `${levelName}_the_end`];
+  for (const t of targets) {
+    const p = path.join(sDir, t);
+    if (p.startsWith(sDir)) await fsp.rm(p, { recursive: true, force: true });
+  }
+  return targets;
+}
+
 module.exports = {
   instancesRoot,
   instanceDir,
   serverDir,
+  resetWorld,
   listInstances,
   getInstance,
   saveInstance,

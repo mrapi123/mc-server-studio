@@ -139,6 +139,14 @@ function registerIpc(getWindow) {
   /* ---- ağ ---- */
   ipcMain.handle('net:info', (_e, { id }) => network.netInfo(id));
 
+  /* ---- dünya ---- */
+  ipcMain.handle('world:reset', async (_e, { id }) => {
+    if (serverproc.status(id) !== 'stopped') {
+      throw new Error('Dünyayı sıfırlamak için önce sunucuyu durdur.');
+    }
+    return instances.resetWorld(id);
+  });
+
   /* ---- server.properties ---- */
   ipcMain.handle('props:get', (_e, { id }) => mods.getProperties(id));
   ipcMain.handle('props:set', (_e, { id, updates }) => mods.setProperties(id, updates));

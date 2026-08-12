@@ -295,6 +295,40 @@
               <button id="btn-save-props" class="btn btn-primary">Kaydet</button>
               <p class="muted small">Değişikliklerin uygulanması için sunucuyu yeniden başlat.</p>
             </div>
+
+            <div class="panel-card">
+              <div class="panel-title"><svg><use href="#i-globe"/></svg><h3>Dünya Ayarları</h3></div>
+              <div class="props-grid">
+                <label>Seed (tohum) <input id="world-seed" type="text" placeholder="rastgele" /></label>
+                <label>Dünya tipi
+                  <select id="world-type">
+                    <option value="">-</option>
+                    <option value="minecraft:normal">Normal</option>
+                    <option value="minecraft:flat">Düz (Superflat)</option>
+                    <option value="minecraft:large_biomes">Büyük Biyomlar</option>
+                    <option value="minecraft:amplified">Amplified</option>
+                  </select>
+                </label>
+                <label>Simülasyon mesafesi <input id="world-sim" type="number" placeholder="10" min="3" max="32" /></label>
+              </div>
+              <div class="checks-grid">
+                <label class="checkbox-label"><input id="world-structures" type="checkbox" /> Yapılar oluşsun (köy, zindan...)</label>
+                <label class="checkbox-label"><input id="world-hardcore" type="checkbox" /> Hardcore</label>
+                <label class="checkbox-label"><input id="world-animals" type="checkbox" /> Hayvanlar doğsun</label>
+                <label class="checkbox-label"><input id="world-monsters" type="checkbox" /> Canavarlar doğsun</label>
+                <label class="checkbox-label"><input id="world-npcs" type="checkbox" /> Köylüler doğsun</label>
+                <label class="checkbox-label"><input id="world-nether" type="checkbox" /> Nether açık</label>
+                <label class="checkbox-label"><input id="world-flight" type="checkbox" /> Uçuşa izin ver (anti-kick)</label>
+                <label class="checkbox-label"><input id="world-cmdblock" type="checkbox" /> Komut blokları</label>
+                <label class="checkbox-label"><input id="world-forcegm" type="checkbox" /> Oyun modunu zorla</label>
+              </div>
+              <button id="btn-save-world" class="btn btn-primary">Kaydet</button>
+              <p class="muted small">Seed ve dünya tipi yalnızca <b>yeni oluşturulacak</b> dünyaya uygulanır.
+                Mevcut dünyayı silip yenisini başlatmak için:</p>
+              <button id="btn-reset-world" class="btn btn-ghost danger-text">
+                <svg><use href="#i-trash"/></svg> Dünyayı Sıfırla (kalıcı siler!)
+              </button>
+            </div>
           </div>
         </div>
       </section>

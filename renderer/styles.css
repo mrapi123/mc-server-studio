@@ -378,6 +378,7 @@ code {
 }
 .panel-card input:focus, .panel-card select:focus { border-color: var(--accent-dark); }
 .props-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.checks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
 .checkbox-label { flex-direction: row !important; align-items: center; gap: 9px !important; cursor: pointer; font-weight: 400 !important; }
 .checkbox-label input { accent-color: var(--accent); width: 16px; height: 16px; }
 

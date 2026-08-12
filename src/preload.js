@@ -44,6 +44,9 @@ contextBridge.exposeInMainWorld('api', {
   // ağ bilgisi
   getNetInfo: invoke('net:info'),
 
+  // dünya
+  resetWorld: invoke('world:reset'),
+
   // java
   listJava: invoke('java:list'),
   downloadJava: invoke('java:download'),

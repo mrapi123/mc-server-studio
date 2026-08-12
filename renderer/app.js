@@ -761,6 +761,66 @@ async function loadSettingsTab(inst) {
   $('#prop-spawnprot').value = props['spawn-protection'] || '';
   $('#prop-online').checked = props['online-mode'] !== 'false';
   $('#prop-pvp').checked = props.pvp !== 'false';
+
+  // dünya ayarları (değer yoksa Minecraft varsayılanları)
+  $('#world-seed').value = props['level-seed'] || '';
+  const lt = (props['level-type'] || '').toLowerCase().replace('\\', '');
+  $('#world-type').value =
+    lt.includes('flat') ? 'minecraft:flat' :
+    lt.includes('large') ? 'minecraft:large_biomes' :
+    lt.includes('amplified') ? 'minecraft:amplified' :
+    lt ? 'minecraft:normal' : '';
+  $('#world-sim').value = props['simulation-distance'] || '';
+  $('#world-structures').checked = props['generate-structures'] !== 'false';
+  $('#world-hardcore').checked = props.hardcore === 'true';
+  $('#world-animals').checked = props['spawn-animals'] !== 'false';
+  $('#world-monsters').checked = props['spawn-monsters'] !== 'false';
+  $('#world-npcs').checked = props['spawn-npcs'] !== 'false';
+  $('#world-nether').checked = props['allow-nether'] !== 'false';
+  $('#world-flight').checked = props['allow-flight'] === 'true';
+  $('#world-cmdblock').checked = props['enable-command-block'] === 'true';
+  $('#world-forcegm').checked = props['force-gamemode'] === 'true';
+}
+
+async function saveWorldSettings() {
+  const updates = {
+    'generate-structures': $('#world-structures').checked ? 'true' : 'false',
+    hardcore: $('#world-hardcore').checked ? 'true' : 'false',
+    'spawn-animals': $('#world-animals').checked ? 'true' : 'false',
+    'spawn-monsters': $('#world-monsters').checked ? 'true' : 'false',
+    'spawn-npcs': $('#world-npcs').checked ? 'true' : 'false',
+    'allow-nether': $('#world-nether').checked ? 'true' : 'false',
+    'allow-flight': $('#world-flight').checked ? 'true' : 'false',
+    'enable-command-block': $('#world-cmdblock').checked ? 'true' : 'false',
+    'force-gamemode': $('#world-forcegm').checked ? 'true' : 'false'
+  };
+  const seed = $('#world-seed').value.trim();
+  const type = $('#world-type').value;
+  const sim = $('#world-sim').value.trim();
+  if (seed) updates['level-seed'] = seed;
+  if (type) updates['level-type'] = type;
+  if (sim) updates['simulation-distance'] = sim;
+  try {
+    await window.api.setProperties({ id: state.currentId, updates });
+    toast('Dünya ayarları kaydedildi. Yeniden başlatınca uygulanır.');
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function resetWorld() {
+  const ok = confirm(
+    'DÜNYA KALICI OLARAK SİLİNECEK!\n\n' +
+    'Tüm yapılar, eşyalar ve ilerleme kaybolur. Sunucu bir sonraki açılışta ' +
+    'yeni seed/dünya tipi ayarlarıyla sıfırdan dünya oluşturur.\n\nEmin misin?'
+  );
+  if (!ok) return;
+  try {
+    await window.api.resetWorld({ id: state.currentId });
+    toast('Dünya silindi. Sunucuyu başlattığında yeni dünya oluşacak.');
+  } catch (err) {
+    toast(err.message, true);
+  }
 }
 
 async function saveInstanceSettings() {
@@ -892,6 +952,8 @@ function bind() {
   // ayarlar
   $('#btn-save-instance').addEventListener('click', saveInstanceSettings);
   $('#btn-save-props').addEventListener('click', saveProps);
+  $('#btn-save-world').addEventListener('click', saveWorldSettings);
+  $('#btn-reset-world').addEventListener('click', resetWorld);
 
   $('#btn-settings').addEventListener('click', openAppSettings);
   $('#as-cancel').addEventListener('click', () => $('#modal-settings').classList.add('hidden'));
