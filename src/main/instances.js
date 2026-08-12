@@ -9,6 +9,7 @@ const curseforge = require('./curseforge');
 const loaders = require('./loaders');
 const javaMgr = require('./java');
 const settings = require('./settings');
+const resourcepack = require('./resourcepack');
 
 function instancesRoot() {
   return path.join(app.getPath('userData'), 'instances');
@@ -93,15 +94,18 @@ async function installMrpack(mrpackPath, destDir, report) {
   if (!indexEntry) throw new Error('Geçersiz mrpack: modrinth.index.json bulunamadı.');
   const index = JSON.parse(indexEntry.getData().toString('utf8'));
 
-  const files = (index.files || []).filter((f) => !(f.env && f.env.server === 'unsupported'));
-  report(`${files.length} dosya indirilecek...`);
+  // Resource pack'ler client-only işaretli olsa bile sunucuya indirilir (istemcilere sunulacak)
+  const files = (index.files || []).filter((f) => resourcepack.shouldInstallMrpackFile(f));
+  const skipped = (index.files || []).length - files.length;
+  report(`${files.length} dosya indirilecek${skipped ? ` (${skipped} client-only mod atlandı)` : ''}...`);
   let done = 0;
   await runLimited(files, 6, async (f) => {
     const target = path.join(destDir, f.path);
     if (target.includes('..')) throw new Error(`Güvensiz dosya yolu: ${f.path}`);
     await downloadFile(f.downloads[0], target);
     done++;
-    report(`Mod dosyaları indiriliyor (${done}/${files.length})`, done, files.length);
+    const label = resourcepack.isResourcePackPath(f.path) ? 'Resource pack' : 'Dosya';
+    report(`${label} indiriliyor (${done}/${files.length})`, done, files.length);
   });
 
   // overrides ve server-overrides klasörlerini kopyala
@@ -111,6 +115,11 @@ async function installMrpack(mrpackPath, destDir, report) {
   await copyDirInto(path.join(tmpOverrides, 'overrides'), destDir);
   await copyDirInto(path.join(tmpOverrides, 'server-overrides'), destDir);
   await fsp.rm(tmpOverrides, { recursive: true, force: true });
+
+  try {
+    const rps = await resourcepack.listResourcePackFiles(destDir);
+    if (rps.length) report(`${rps.length} resource pack kuruldu (sunucu açılınca oyunculara gönderilir).`);
+  } catch (_e) { /* ignore */ }
 
   const deps = index.dependencies || {};
   let loader = 'vanilla';
@@ -150,15 +159,30 @@ async function installCurseForgeManifest(zipPath, destDir, report) {
   }
 
   const files = manifest.files || [];
-  report(`${files.length} mod indirilecek...`);
+  report(`${files.length} dosya indirilecek (mod + resource pack)...`);
   const failedMods = [];
   let done = 0;
+  let rpCount = 0;
 
   await runLimited(files, 4, async (f) => {
     try {
       const fileInfo = await curseforge.getFile(f.projectID, f.fileID);
+      let classId = 6;
+      try {
+        const mod = await curseforge.getMod(f.projectID);
+        classId = mod.classId || 6;
+      } catch (_e) { /* varsayılan mods */ }
+
+      // Dosya adına göre de tahmin (API class vermezse)
+      let folder = resourcepack.folderForCurseClass(classId);
+      if (folder === 'mods' && /\.zip$/i.test(fileInfo.fileName) && !/\.jar$/i.test(fileInfo.fileName)) {
+        // Zip + mods class değilse resource pack olabilir — classId kontrolü yeterli
+      }
+      if (folder === 'resourcepacks') rpCount++;
+
       const url = fileInfo.downloadUrl || (await curseforge.resolveDownloadUrl(f.projectID, f.fileID, fileInfo.fileName));
-      await downloadFile(url, path.join(destDir, 'mods', fileInfo.fileName));
+      await fsp.mkdir(path.join(destDir, folder), { recursive: true });
+      await downloadFile(url, path.join(destDir, folder, fileInfo.fileName));
     } catch (_e) {
       let name = `proje ${f.projectID}`;
       try {
@@ -168,9 +192,11 @@ async function installCurseForgeManifest(zipPath, destDir, report) {
       failedMods.push({ projectID: f.projectID, fileID: f.fileID, name });
     } finally {
       done++;
-      report(`Modlar indiriliyor (${done}/${files.length})`, done, files.length);
+      report(`Dosyalar indiriliyor (${done}/${files.length})`, done, files.length);
     }
   });
+
+  if (rpCount) report(`${rpCount} resource pack indirildi.`);
 
   // overrides kopyala
   const overridesName = manifest.overrides || 'overrides';
@@ -179,6 +205,12 @@ async function installCurseForgeManifest(zipPath, destDir, report) {
   zip.extractAllTo(tmpOverrides, true);
   await copyDirInto(path.join(tmpOverrides, overridesName), destDir);
   await fsp.rm(tmpOverrides, { recursive: true, force: true });
+
+  // Overrides içindeki resourcepacks say
+  try {
+    const rps = await resourcepack.listResourcePackFiles(destDir);
+    if (rps.length) report(`Toplam ${rps.length} resource pack hazır.`);
+  } catch (_e) { /* ignore */ }
 
   return {
     mcVersion,
@@ -305,6 +337,10 @@ async function createInstance(payload, report) {
         report('Sunucu paketi açılıyor...');
         extractZipSmart(zipPath, sDir);
         await fsp.unlink(zipPath).catch(() => {});
+        try {
+          const rps = await resourcepack.listResourcePackFiles(sDir);
+          if (rps.length) report(`${rps.length} resource pack paketten geldi.`);
+        } catch (_e) { /* ignore */ }
 
         // mc sürümü / loader bilgisi client dosyasının gameVersions verisinden alınır
         const mapped = { mcVersions: [], loaders: [] };

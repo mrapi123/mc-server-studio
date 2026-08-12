@@ -1,6 +1,7 @@
 const { spawn } = require('child_process');
 const loaders = require('./loaders');
 const instances = require('./instances');
+const resourcepack = require('./resourcepack');
 
 /** id -> { proc, buffer:[], status } */
 const running = new Map();
@@ -106,8 +107,29 @@ async function start(id) {
   const { args } = launch;
   const javaExe = meta.javaPath || 'java';
 
+  // Resource pack varsa yerel HTTP ile yayınla + server.properties güncelle
+  try {
+    await resourcepack.prepareServerResourcePack(id, sDir, (t) => {
+      // henüz running map yok; sonra pushLog ile ekleyeceğiz
+      if (!running.has(id)) {
+        running.set(id, { proc: null, buffer: [t], status: 'starting', players: new Set() });
+      } else {
+        pushLog(id, t);
+      }
+    });
+  } catch (err) {
+    // Resource pack sunucusu zorunlu değil
+    console.error('resource pack prepare:', err.message);
+  }
+
   const proc = spawn(javaExe, args, { cwd: sDir, windowsHide: true });
-  running.set(id, { proc, buffer: [], status: 'starting', players: new Set() });
+  const existing = running.get(id);
+  running.set(id, {
+    proc,
+    buffer: existing ? existing.buffer : [],
+    status: 'starting',
+    players: new Set()
+  });
   notify('server:status-change', { id, status: 'starting' });
   pushLog(id, `> ${javaExe} ${args.join(' ')}\n`);
 
@@ -126,6 +148,7 @@ async function start(id) {
     pushLog(id, `\n[Sunucu kapandı, çıkış kodu: ${code}]\n`);
     const entry = running.get(id);
     if (entry) entry.players.clear();
+    resourcepack.stopPackServer(id);
     notify('server:players', { id, online: [] });
     setStatus(id, 'stopped');
   });
@@ -166,8 +189,9 @@ async function stop(id) {
 }
 
 function kill(id) {
+  resourcepack.stopPackServer(id);
   const entry = running.get(id);
-  if (entry) {
+  if (entry && entry.proc) {
     try { entry.proc.kill('SIGKILL'); } catch (_e) { /* zaten ölü */ }
   }
 }
