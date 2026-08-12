@@ -1,5 +1,5 @@
 /* Uçtan uca test: modpack ara -> sunucu kur -> başlat -> "Done" bekle -> durdur.
-   Çalıştırma: npx electron test-e2e.js */
+   Çalıştırma: npm run test:e2e */
 const { app } = require('electron');
 const path = require('path');
 const os = require('os');

@@ -1,45 +1,77 @@
 # MC Server Studio
 
-Modrinth ve CurseForge modpack destekli, kendi bilgisayarında Minecraft sunucusu kurup yönetmeni sağlayan açık kaynak masaüstü uygulaması.
+[![Lisans](https://img.shields.io/badge/lisans-MIT-22c55e.svg)](LICENSE)
+[![Sürüm](https://img.shields.io/github/v/release/mrapi123/mc-server-studio?color=14b8a6)](https://github.com/mrapi123/mc-server-studio/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows-0078d4.svg)](https://github.com/mrapi123/mc-server-studio/releases)
 
-[![Release](https://img.shields.io/github/v/release/mrapi123/mc-server-studio)](https://github.com/mrapi123/mc-server-studio/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+Modrinth ve CurseForge modpack'lerini indirip kendi bilgisayarında Minecraft sunucusu olarak kuran, üzerine ekstra mod ekleyebileceğin, Aternos tarzı ayarlara sahip masaüstü uygulaması.
 
-## İndir
+**İndir:** [Son sürüm (v1.1.0)](https://github.com/mrapi123/mc-server-studio/releases/latest)
 
-En güncel Windows exe: **[Releases](https://github.com/mrapi123/mc-server-studio/releases)**
+| Dosya | Ne işe yarar |
+| --- | --- |
+| `MC.Server.Studio.1.1.0.portable.exe` | Kurulum yok, çift tıkla çalışır |
+| `MC.Server.Studio.Setup.1.1.0.exe` | Kurulum sihirbazı, Başlat menüsüne ekler |
 
-- `MC.Server.Studio.*.portable.exe` — kurulum gerektirmez, çift tıkla çalıştır
-- `MC.Server.Studio.Setup.*.exe` — kurulum sihirbazı
+Windows SmartScreen uyarısında **Ek bilgi → Yine de çalıştır** de (uygulama imzasızdır).
 
-> Windows SmartScreen uyarısında **Ek bilgi → Yine de çalıştır** seç (uygulama imzasızdır).
+---
 
 ## Özellikler
 
-| Bölüm | Ne yapar |
-| --- | --- |
-| Modpack kurulum | Modrinth / CurseForge arama, `.mrpack` / `.zip` içe aktarma |
-| Loader | Forge, NeoForge, Fabric, Quilt, vanilla — otomatik kurulum |
-| Java | Gereken sürümü tespit eder, yoksa Temurin indirir |
-| Modlar | Pack üzerine ekstra mod ara/ekle, jar ekle, aç/kapat, sil |
-| Konsol | Canlı renkli log, komut geçmişi (↑↓), başlat/durdur |
-| Oyuncular | Çevrimiçi liste, kick/ban, whitelist, OP, giriş/çıkış kayıtları |
-| Bağlantı | LAN + genel IP:port, kopyala, port yönlendirme adımları |
-| Dünya | Seed, tip, hardcore, spawn, nether, uçuş, komut bloğu, sıfırla |
-| Performans | Görüş mesafesi + chunk simülasyon mesafesi (+/− ve hazır profiller) |
+- **Modpack arama** — Modrinth ve CurseForge (API anahtarı gerekmez)
+- **Tek tıkla kurulum** — Forge / NeoForge / Fabric / Quilt / vanilla; CurseForge'da server pack varsa onu kullanır
+- **Otomatik Java** — Mojang meta verisine göre gereken sürümü bulur, yoksa Temurin JRE indirir
+- **Ekstra mod** — Modrinth/CurseForge'dan ara veya `.jar` dosyası ekle, aç/kapat, sil
+- **Konsol** — Canlı renkli log, komut gönderme, ↑↓ geçmiş
+- **Oyuncular** — Çevrimiçi liste (kick/ban), whitelist, OP, giriş/çıkış kayıtları
+- **Görüş & chunk** — `view-distance` ve `simulation-distance` için +/- butonları ve hazır profiller (Potato → Ultra)
+- **Dünya ayarları** — Seed, dünya tipi, yapılar, hardcore, spawn, Nether, uçuş, komut bloğu, dünya sıfırlama
+- **Bağlantı** — LAN ve genel IP:port, kopyala butonu, port yönlendirme adımları
+- **Dosyadan içe aktar** — `.mrpack` veya CurseForge `.zip`
 
-## Görüş & Chunk ayarları
+---
 
-Ayarlar sekmesindeki **Görüş & Chunk Performansı** kartından:
+## Klasör yapısı
 
-- **view-distance** — oyuncuya gönderilen chunk yarıçapı (render)
-- **simulation-distance** — mob / ekin / redstone işlenen chunk yarıçapı
+```
+mc-server-studio/
+├── src/
+│   ├── main/                 # Electron ana süreç
+│   │   ├── main.js           # Pencere
+│   │   ├── ipc.js            # Arayüz ↔ süreç köprüsü
+│   │   ├── instances.js      # Sunucu kurulumu / dünya sıfırlama
+│   │   ├── loaders.js        # Forge / Fabric / Quilt / NeoForge
+│   │   ├── modrinth.js       # Modrinth API
+│   │   ├── curseforge.js     # CurseForge API (curse.tools)
+│   │   ├── java.js           # Java keşfi ve indirme
+│   │   ├── serverproc.js     # Java süreci, konsol, oyuncu takibi
+│   │   ├── players.js        # Whitelist / OP / kayıtlar
+│   │   ├── mods.js           # Mod ve server.properties
+│   │   ├── network.js        # LAN + genel IP
+│   │   ├── settings.js       # Uygulama ayarları
+│   │   └── util.js
+│   └── preload.js            # Güvenli IPC yüzeyi
+├── renderer/                 # Arayüz (HTML / CSS / JS)
+├── tests/                    # Smoke + uçtan uca testler
+├── scripts/                  # GitHub yayınlama betikleri
+├── LICENSE
+├── README.md
+├── CONTRIBUTING.md
+└── package.json
+```
 
-Hazır profiller: Potato (4/4), Dengeli (8/6), Varsayılan (10/10), Yüksek (16/12), Ultra (32/16). Aralık 3–32. Değişiklik sunucu yeniden başlatılınca uygulanır.
+Sunucu dosyaları `%APPDATA%/mc-server-studio/instances/` altında tutulur (uygulamadaki klasör butonuyla açılır).
+
+---
 
 ## Geliştirme
 
+Gereksinimler: Node.js 18+, Windows.
+
 ```bash
+git clone https://github.com/mrapi123/mc-server-studio.git
+cd mc-server-studio
 npm install
 npm start
 ```
@@ -54,11 +86,10 @@ npm install
 ### Testler
 
 ```bash
-npm run test:smoke     # dış API erişimi
-npm run test:props     # server.properties / chunk / dünya
-npm run test:players   # whitelist, OP, ağ
-npm run test:e2e       # Modrinth kurulum + sunucu açılışı
-npm run test:cf        # CurseForge kurulum + sunucu açılışı
+npm run test:smoke      # Dış API erişimi
+npm run test:players    # Whitelist / OP / ağ
+npm run test:e2e        # Modrinth paketi kur + sunucu aç
+npm run test:cf         # CurseForge paketi kur + sunucu aç
 ```
 
 ### Exe paketleme
@@ -68,30 +99,46 @@ $env:ELECTRON_BUILDER_BINARIES_MIRROR="https://npmmirror.com/mirrors/electron-bu
 npm run dist
 ```
 
-Çıktı: `dist/`
+`dist/` klasöründe NSIS kurulum ve portable exe üretilir.
 
-## Proje yapısı
+`winCodeSign` sembolik link hatası alırsan Windows Geliştirici Modu'nu aç veya arşivi
+`%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0` klasörüne elle aç
+(macOS link hataları yok sayılabilir).
 
-```
-mc-server-studio/
-├── src/
-│   ├── main/          # Electron ana süreç (API, kurulum, sunucu)
-│   └── preload.js     # Güvenli IPC köprüsü
-├── renderer/          # Arayüz (HTML/CSS/JS)
-├── tests/             # Smoke + e2e testler
-├── scripts/           # GitHub yayın betikleri
-├── package.json
-├── LICENSE
-└── README.md
-```
+---
+
+## Arkadaşların nasıl bağlanır?
+
+| Durum | Ne yapmalılar |
+| --- | --- |
+| Aynı ev / Wi-Fi | **Bağlantı** sekmesindeki LAN adresi (`192.168.x.x:25565`) |
+| Başka ev / internet | Genel IP:port — ama önce modemde **25565 TCP** port yönlendirme şart |
+
+Port yönlendirme yapamıyorsan [playit.gg](https://playit.gg) gibi ücretsiz tünel kullanılabilir.
+
+---
+
+## Ayarlar özeti
+
+| Ayar | Nerede | Not |
+| --- | --- | --- |
+| Görüş mesafesi (3–32) | Ayarlar → Görüş & Chunk | Oyuncuya gönderilen chunk yarıçapı |
+| Simülasyon mesafesi (3–32) | Ayarlar → Görüş & Chunk | Mob / ekin / redstone işlenen yarıçap |
+| Seed, dünya tipi | Ayarlar → Dünya | Sadece **yeni** dünyaya uygulanır |
+| Hardcore, Nether, yapılar, spawn | Ayarlar → Dünya | Yeniden başlatınca uygulanır |
+| Dünyayı sıfırla | Ayarlar → Dünya | Sunucu kapalıyken; kalıcı siler |
+| RAM, Java, EULA | Ayarlar → Sunucu | |
+| Port, MOTD, zorluk, PvP, online-mode | Ayarlar → server.properties | |
+| Whitelist / OP | Oyuncular sekmesi | |
+
+Hazır chunk profilleri: Potato (4/4), Dengeli (8/6), Varsayılan (10/10), Yüksek (16/12), Ultra (32/16).
+
+---
 
 ## Notlar
 
-- Sunucu dosyaları: `%APPDATA%/mc-server-studio/instances/`
-- Bazı CurseForge modları üçüncü taraf indirmeye kapalı olabilir; elle eklenebilir
-- İnternetten bağlanmak için modemde port yönlendirme (varsayılan 25565) gerekir
-- Seed / dünya tipi yalnızca **yeni** dünyaya uygulanır — mevcut dünyayı silmek için Ayarlar → Dünyayı Sıfırla
+- Bazı CurseForge modları üçüncü taraf indirmeye kapalıdır; kurulum sonunda uyarı olarak listelenir, elle eklenebilir.
+- CurseForge API anahtarı isteğe bağlıdır (Ayarlar). Boşsa `api.curse.tools` kullanılır.
+- Katkı için [CONTRIBUTING.md](CONTRIBUTING.md) dosyasına bak.
 
-## Lisans
-
-[MIT](LICENSE)
+Lisans: [MIT](LICENSE)

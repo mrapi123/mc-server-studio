@@ -1,4 +1,4 @@
-/* Ağ API'lerinin çalıştığını doğrulayan hızlı test (node smoke-test.js) */
+/* Ağ API'lerinin çalıştığını doğrulayan hızlı test. Çalıştırma: npm run test:smoke */
 
 async function main() {
   const results = [];

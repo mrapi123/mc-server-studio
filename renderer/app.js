@@ -785,20 +785,21 @@ async function loadSettingsTab(inst) {
   $('#world-forcegm').checked = props['force-gamemode'] === 'true';
 }
 
-function clampChunk(n) {
-  return Math.max(3, Math.min(32, Number(n) || 10));
-}
+/* ---------------- görüş / chunk stepper ---------------- */
 
-function setStepper(kind, value) {
-  const el = $(`#step-${kind}`);
-  if (el) el.textContent = String(clampChunk(value));
+function clampChunk(n) {
+  return Math.max(3, Math.min(32, n));
 }
 
 function getStepper(kind) {
-  return clampChunk($(`#step-${kind}`).textContent);
+  return clampChunk(Number($(`#step-${kind}`).textContent) || 10);
 }
 
-function nudgeStepper(kind, dir) {
+function setStepper(kind, value) {
+  $(`#step-${kind}`).textContent = clampChunk(value);
+}
+
+function bumpStepper(kind, dir) {
   setStepper(kind, getStepper(kind) + dir);
 }
 
@@ -811,7 +812,7 @@ async function saveChunks() {
         'simulation-distance': String(getStepper('sim'))
       }
     });
-    toast(`Görüş ${getStepper('view')} / Chunk ${getStepper('sim')} kaydedildi.`);
+    toast(`Görüş ${getStepper('view')} / simülasyon ${getStepper('sim')} kaydedildi. Yeniden başlatınca uygulanır.`);
   } catch (err) {
     toast(err.message, true);
   }
@@ -857,8 +858,6 @@ async function resetWorld() {
 }
 
 async function saveInstanceSettings() {
-  try {
-    await window.api.updateInstance({
       id: state.currentId,
       updates: {
         memoryMb: Number($('#set-memory').value) || 4096,
@@ -985,22 +984,17 @@ function bind() {
   // ayarlar
   $('#btn-save-instance').addEventListener('click', saveInstanceSettings);
   $('#btn-save-props').addEventListener('click', saveProps);
-  $('#btn-save-chunks').addEventListener('click', saveChunks);
   $('#btn-save-world').addEventListener('click', saveWorldSettings);
   $('#btn-reset-world').addEventListener('click', resetWorld);
-
-  $$('.step-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      nudgeStepper(btn.dataset.step, Number(btn.dataset.dir));
-    });
-  });
-  $$('[data-preset]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const [view, sim] = btn.dataset.preset.split(',').map(Number);
-      setStepper('view', view);
-      setStepper('sim', sim);
-    });
-  });
+  $('#btn-save-chunks').addEventListener('click', saveChunks);
+  $$('.step-btn').forEach((b) =>
+    b.addEventListener('click', () => bumpStepper(b.dataset.step, Number(b.dataset.dir))));
+  $$('[data-preset]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const [v, s] = b.dataset.preset.split(',').map(Number);
+      setStepper('view', v);
+      setStepper('sim', s);
+    }));
 
   $('#btn-settings').addEventListener('click', openAppSettings);
   $('#as-cancel').addEventListener('click', () => $('#modal-settings').classList.add('hidden'));

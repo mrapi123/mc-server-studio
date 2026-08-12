@@ -1,4 +1,4 @@
-/* Oyuncu + ağ modülleri testi. Çalıştırma: npx electron test-players.js */
+/* Oyuncu + ağ modülleri testi. Çalıştırma: npm run test:players */
 const { app } = require('electron');
 const path = require('path');
 const os = require('os');

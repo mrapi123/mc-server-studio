@@ -1,4 +1,4 @@
-/* CurseForge manifest kurulum yolu testi. Çalıştırma: npx electron test-cf.js */
+/* CurseForge manifest kurulum yolu testi. Çalıştırma: npm run test:cf */
 const { app } = require('electron');
 const path = require('path');
 const os = require('os');
