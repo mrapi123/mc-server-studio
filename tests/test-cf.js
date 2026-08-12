@@ -5,10 +5,10 @@ const os = require('os');
 
 app.setPath('userData', path.join(os.tmpdir(), 'mc-server-studio-e2e'));
 
-const curseforge = require('./src/main/curseforge');
-const instances = require('./src/main/instances');
-const loaders = require('./src/main/loaders');
-const serverproc = require('./src/main/serverproc');
+const curseforge = require('../src/main/curseforge');
+const instances = require('../src/main/instances');
+const loaders = require('../src/main/loaders');
+const serverproc = require('../src/main/serverproc');
 
 const log = (...a) => console.log('[CF-E2E]', ...a);
 

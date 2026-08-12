@@ -280,8 +280,8 @@
                     <option value="adventure">Macera</option>
                   </select>
                 </label>
-                <label>Görüş mesafesi <input id="prop-view" type="number" placeholder="10" min="3" max="32" /></label>
                 <label>Spawn koruması <input id="prop-spawnprot" type="number" placeholder="16" min="0" /></label>
+                <label>Boşta kalma limiti (dk) <input id="prop-idle" type="number" placeholder="0" min="0" /></label>
               </div>
               <label>MOTD (sunucu açıklaması) <input id="prop-motd" type="text" placeholder="Bir Minecraft sunucusu" /></label>
               <label class="checkbox-label">
@@ -297,6 +297,42 @@
             </div>
 
             <div class="panel-card">
+              <div class="panel-title"><svg><use href="#i-wifi"/></svg><h3>Görüş &amp; Chunk Performansı</h3></div>
+              <div class="stepper-row">
+                <div class="stepper-info">
+                  <div class="stepper-name">Görüş mesafesi (view-distance)</div>
+                  <div class="stepper-desc">Oyuncuya gönderilen chunk yarıçapı. Yüksek = daha uzağı görürsün, daha çok RAM/internet.</div>
+                </div>
+                <div class="stepper">
+                  <button class="btn btn-icon step-btn" data-step="view" data-dir="-1">−</button>
+                  <span id="step-view" class="step-value">10</span>
+                  <button class="btn btn-icon step-btn" data-step="view" data-dir="1">+</button>
+                </div>
+              </div>
+              <div class="stepper-row">
+                <div class="stepper-info">
+                  <div class="stepper-name">Chunk simülasyon mesafesi (simulation-distance)</div>
+                  <div class="stepper-desc">Dünyanın aktif işlendiği (mob, ekin, redstone) chunk yarıçapı. Yüksek = daha canlı dünya, daha çok CPU.</div>
+                </div>
+                <div class="stepper">
+                  <button class="btn btn-icon step-btn" data-step="sim" data-dir="-1">−</button>
+                  <span id="step-sim" class="step-value">10</span>
+                  <button class="btn btn-icon step-btn" data-step="sim" data-dir="1">+</button>
+                </div>
+              </div>
+              <div class="preset-row">
+                <span class="muted small">Hazır profiller:</span>
+                <button class="btn btn-ghost btn-sm" data-preset="4,4">Potato (4/4)</button>
+                <button class="btn btn-ghost btn-sm" data-preset="8,6">Dengeli (8/6)</button>
+                <button class="btn btn-ghost btn-sm" data-preset="10,10">Varsayılan (10/10)</button>
+                <button class="btn btn-ghost btn-sm" data-preset="16,12">Yüksek (16/12)</button>
+                <button class="btn btn-ghost btn-sm" data-preset="32,16">Ultra (32/16)</button>
+              </div>
+              <button id="btn-save-chunks" class="btn btn-primary">Kaydet</button>
+              <p class="muted small">Aralık: 3–32 chunk. Değişiklik sunucu yeniden başlatılınca uygulanır.</p>
+            </div>
+
+            <div class="panel-card">
               <div class="panel-title"><svg><use href="#i-globe"/></svg><h3>Dünya Ayarları</h3></div>
               <div class="props-grid">
                 <label>Seed (tohum) <input id="world-seed" type="text" placeholder="rastgele" /></label>
@@ -309,7 +345,6 @@
                     <option value="minecraft:amplified">Amplified</option>
                   </select>
                 </label>
-                <label>Simülasyon mesafesi <input id="world-sim" type="number" placeholder="10" min="3" max="32" /></label>
               </div>
               <div class="checks-grid">
                 <label class="checkbox-label"><input id="world-structures" type="checkbox" /> Yapılar oluşsun (köy, zindan...)</label>

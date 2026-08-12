@@ -6,10 +6,10 @@ const os = require('os');
 
 app.setPath('userData', path.join(os.tmpdir(), 'mc-server-studio-e2e'));
 
-const modrinth = require('./src/main/modrinth');
-const instances = require('./src/main/instances');
-const loaders = require('./src/main/loaders');
-const serverproc = require('./src/main/serverproc');
+const modrinth = require('../src/main/modrinth');
+const instances = require('../src/main/instances');
+const loaders = require('../src/main/loaders');
+const serverproc = require('../src/main/serverproc');
 
 function log(...args) {
   console.log('[E2E]', ...args);

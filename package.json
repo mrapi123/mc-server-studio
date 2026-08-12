@@ -1,14 +1,27 @@
 {
   "name": "mc-server-studio",
   "productName": "MC Server Studio",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Modrinth ve CurseForge modpack destekli Minecraft sunucu yöneticisi",
   "main": "src/main/main.js",
   "author": "Mehmet",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mrapi123/mc-server-studio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mrapi123/mc-server-studio/issues"
+  },
+  "homepage": "https://github.com/mrapi123/mc-server-studio#readme",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win"
+    "dist": "electron-builder --win",
+    "test:smoke": "node tests/smoke-test.js",
+    "test:props": "electron tests/test-props.js",
+    "test:players": "electron tests/test-players.js",
+    "test:e2e": "electron tests/test-e2e.js",
+    "test:cf": "electron tests/test-cf.js"
   },
   "dependencies": {
     "adm-zip": "^0.5.16"

@@ -757,8 +757,12 @@ async function loadSettingsTab(inst) {
   $('#prop-max').value = props['max-players'] || '';
   $('#prop-difficulty').value = props.difficulty || '';
   $('#prop-gamemode').value = props.gamemode || '';
-  $('#prop-view').value = props['view-distance'] || '';
   $('#prop-spawnprot').value = props['spawn-protection'] || '';
+  $('#prop-idle').value = props['player-idle-timeout'] || '';
+
+  // görüş & chunk stepper'ları
+  setStepper('view', Number(props['view-distance']) || 10);
+  setStepper('sim', Number(props['simulation-distance']) || 10);
   $('#prop-online').checked = props['online-mode'] !== 'false';
   $('#prop-pvp').checked = props.pvp !== 'false';
 
@@ -770,7 +774,6 @@ async function loadSettingsTab(inst) {
     lt.includes('large') ? 'minecraft:large_biomes' :
     lt.includes('amplified') ? 'minecraft:amplified' :
     lt ? 'minecraft:normal' : '';
-  $('#world-sim').value = props['simulation-distance'] || '';
   $('#world-structures').checked = props['generate-structures'] !== 'false';
   $('#world-hardcore').checked = props.hardcore === 'true';
   $('#world-animals').checked = props['spawn-animals'] !== 'false';
@@ -780,6 +783,38 @@ async function loadSettingsTab(inst) {
   $('#world-flight').checked = props['allow-flight'] === 'true';
   $('#world-cmdblock').checked = props['enable-command-block'] === 'true';
   $('#world-forcegm').checked = props['force-gamemode'] === 'true';
+}
+
+function clampChunk(n) {
+  return Math.max(3, Math.min(32, Number(n) || 10));
+}
+
+function setStepper(kind, value) {
+  const el = $(`#step-${kind}`);
+  if (el) el.textContent = String(clampChunk(value));
+}
+
+function getStepper(kind) {
+  return clampChunk($(`#step-${kind}`).textContent);
+}
+
+function nudgeStepper(kind, dir) {
+  setStepper(kind, getStepper(kind) + dir);
+}
+
+async function saveChunks() {
+  try {
+    await window.api.setProperties({
+      id: state.currentId,
+      updates: {
+        'view-distance': String(getStepper('view')),
+        'simulation-distance': String(getStepper('sim'))
+      }
+    });
+    toast(`Görüş ${getStepper('view')} / Chunk ${getStepper('sim')} kaydedildi.`);
+  } catch (err) {
+    toast(err.message, true);
+  }
 }
 
 async function saveWorldSettings() {
@@ -796,10 +831,8 @@ async function saveWorldSettings() {
   };
   const seed = $('#world-seed').value.trim();
   const type = $('#world-type').value;
-  const sim = $('#world-sim').value.trim();
   if (seed) updates['level-seed'] = seed;
   if (type) updates['level-type'] = type;
-  if (sim) updates['simulation-distance'] = sim;
   try {
     await window.api.setProperties({ id: state.currentId, updates });
     toast('Dünya ayarları kaydedildi. Yeniden başlatınca uygulanır.');
@@ -851,8 +884,8 @@ async function saveProps() {
     'max-players': $('#prop-max').value.trim(),
     difficulty: $('#prop-difficulty').value,
     gamemode: $('#prop-gamemode').value,
-    'view-distance': $('#prop-view').value.trim(),
-    'spawn-protection': $('#prop-spawnprot').value.trim()
+    'spawn-protection': $('#prop-spawnprot').value.trim(),
+    'player-idle-timeout': $('#prop-idle').value.trim()
   };
   for (const [k, v] of Object.entries(fields)) {
     if (v) updates[k] = v;
@@ -952,8 +985,22 @@ function bind() {
   // ayarlar
   $('#btn-save-instance').addEventListener('click', saveInstanceSettings);
   $('#btn-save-props').addEventListener('click', saveProps);
+  $('#btn-save-chunks').addEventListener('click', saveChunks);
   $('#btn-save-world').addEventListener('click', saveWorldSettings);
   $('#btn-reset-world').addEventListener('click', resetWorld);
+
+  $$('.step-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      nudgeStepper(btn.dataset.step, Number(btn.dataset.dir));
+    });
+  });
+  $$('[data-preset]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const [view, sim] = btn.dataset.preset.split(',').map(Number);
+      setStepper('view', view);
+      setStepper('sim', sim);
+    });
+  });
 
   $('#btn-settings').addEventListener('click', openAppSettings);
   $('#as-cancel').addEventListener('click', () => $('#modal-settings').classList.add('hidden'));

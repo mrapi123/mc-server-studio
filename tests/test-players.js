@@ -6,9 +6,9 @@ const fs = require('fs');
 
 app.setPath('userData', path.join(os.tmpdir(), 'mc-server-studio-e2e'));
 
-const instances = require('./src/main/instances');
-const players = require('./src/main/players');
-const network = require('./src/main/network');
+const instances = require('../src/main/instances');
+const players = require('../src/main/players');
+const network = require('../src/main/network');
 
 const log = (...a) => console.log('[P-TEST]', ...a);
 

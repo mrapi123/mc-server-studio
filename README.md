@@ -1,54 +1,97 @@
 # MC Server Studio
 
-Modrinth ve CurseForge modpack destekli, kendi bilgisayarında Minecraft sunucusu kurup yönetmeni sağlayan masaüstü uygulaması.
+Modrinth ve CurseForge modpack destekli, kendi bilgisayarında Minecraft sunucusu kurup yönetmeni sağlayan açık kaynak masaüstü uygulaması.
+
+[![Release](https://img.shields.io/github/v/release/mrapi123/mc-server-studio)](https://github.com/mrapi123/mc-server-studio/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+## İndir
+
+En güncel Windows exe: **[Releases](https://github.com/mrapi123/mc-server-studio/releases)**
+
+- `MC.Server.Studio.*.portable.exe` — kurulum gerektirmez, çift tıkla çalıştır
+- `MC.Server.Studio.Setup.*.exe` — kurulum sihirbazı
+
+> Windows SmartScreen uyarısında **Ek bilgi → Yine de çalıştır** seç (uygulama imzasızdır).
 
 ## Özellikler
 
-- **Modpack arama**: Modrinth ve CurseForge'da modpack ara (CurseForge için API anahtarı gerekmez; istersen Ayarlar'dan kendi anahtarını girebilirsin).
-- **Tek tıkla sunucu kurulumu**: Seçtiğin modpack sürümünü indirir, sunucu dosyalarını hazırlar. CurseForge paketlerinde hazır "server pack" varsa otomatik onu kullanır.
-- **Loader desteği**: Forge, NeoForge, Fabric, Quilt ve vanilla sunucuları otomatik kurar.
-- **Otomatik Java**: Gereken Java sürümünü Mojang meta verisinden okur; sistemde yoksa Temurin JRE'yi otomatik indirir.
-- **Ekstra mod ekleme**: Kurulu sunucuya Modrinth/CurseForge'dan uyumlu mod arayıp ekleyebilir, `.jar` dosyasını elle ekleyebilir, modları devre dışı bırakabilir veya silebilirsin.
-- **Konsol**: Canlı, renkli sunucu konsolu; komut gönderme (↑↓ ile komut geçmişi), başlat/durdur.
-- **Oyuncu yönetimi**: Çevrimiçi oyuncu listesi (at/yasakla), beyaz liste (whitelist) aç/kapat ve isim ekleme (online modda Mojang'dan, offline modda deterministik UUID), OP yetkisi verme, oyuncu giriş/çıkış kayıtları.
-- **Bağlantı sekmesi**: Arkadaşlarının bağlanacağı yerel (LAN) ve genel (internet) IP:port adreslerini kopyalanabilir şekilde gösterir; port yönlendirme adımlarını anlatır.
-- **Ayarlar**: RAM, Java yolu, EULA, `server.properties` (port, MOTD, zorluk, online-mode, PvP...).
-- **Dosyadan içe aktar**: `.mrpack` veya CurseForge modpack `.zip` dosyasından kurulum.
+| Bölüm | Ne yapar |
+| --- | --- |
+| Modpack kurulum | Modrinth / CurseForge arama, `.mrpack` / `.zip` içe aktarma |
+| Loader | Forge, NeoForge, Fabric, Quilt, vanilla — otomatik kurulum |
+| Java | Gereken sürümü tespit eder, yoksa Temurin indirir |
+| Modlar | Pack üzerine ekstra mod ara/ekle, jar ekle, aç/kapat, sil |
+| Konsol | Canlı renkli log, komut geçmişi (↑↓), başlat/durdur |
+| Oyuncular | Çevrimiçi liste, kick/ban, whitelist, OP, giriş/çıkış kayıtları |
+| Bağlantı | LAN + genel IP:port, kopyala, port yönlendirme adımları |
+| Dünya | Seed, tip, hardcore, spawn, nether, uçuş, komut bloğu, sıfırla |
+| Performans | Görüş mesafesi + chunk simülasyon mesafesi (+/− ve hazır profiller) |
 
-## Kurulum (geliştirme)
+## Görüş & Chunk ayarları
+
+Ayarlar sekmesindeki **Görüş & Chunk Performansı** kartından:
+
+- **view-distance** — oyuncuya gönderilen chunk yarıçapı (render)
+- **simulation-distance** — mob / ekin / redstone işlenen chunk yarıçapı
+
+Hazır profiller: Potato (4/4), Dengeli (8/6), Varsayılan (10/10), Yüksek (16/12), Ultra (32/16). Aralık 3–32. Değişiklik sunucu yeniden başlatılınca uygulanır.
+
+## Geliştirme
 
 ```bash
 npm install
 npm start
 ```
 
-Not: Electron indirme sorunu yaşarsan `ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/` ortam değişkeniyle `npm install` çalıştır.
+Electron indirme sorunu yaşarsan:
 
-## Exe olarak paketleme
-
-```bash
-npm run dist
+```powershell
+$env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"
+npm install
 ```
 
-`dist/` klasöründe hem kurulum sihirbazlı (NSIS) hem de taşınabilir (portable) `.exe` üretilir.
+### Testler
 
-İndirme sorunlarında şu ortam değişkenleri yardımcı olur:
+```bash
+npm run test:smoke     # dış API erişimi
+npm run test:props     # server.properties / chunk / dünya
+npm run test:players   # whitelist, OP, ağ
+npm run test:e2e       # Modrinth kurulum + sunucu açılışı
+npm run test:cf        # CurseForge kurulum + sunucu açılışı
+```
+
+### Exe paketleme
 
 ```powershell
 $env:ELECTRON_BUILDER_BINARIES_MIRROR="https://npmmirror.com/mirrors/electron-builder-binaries/"
+npm run dist
 ```
 
-`winCodeSign` sembolik link hatası alırsan ya Windows Geliştirici Modu'nu aç ya da arşivi
-`%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0` klasörüne elle aç (macOS link hataları yok sayılabilir).
+Çıktı: `dist/`
 
-## Testler
+## Proje yapısı
 
-- `node smoke-test.js` — kullanılan dış API'lerin (Modrinth, CurseForge proxy, Fabric meta, Adoptium) erişilebilirliğini kontrol eder.
-- `npx electron test-e2e.js` — Modrinth'ten küçük bir modpack kurup sunucuyu gerçekten açar ve kapatır.
-- `npx electron test-cf.js` — CurseForge manifest yolu için aynı testi yapar.
+```
+mc-server-studio/
+├── src/
+│   ├── main/          # Electron ana süreç (API, kurulum, sunucu)
+│   └── preload.js     # Güvenli IPC köprüsü
+├── renderer/          # Arayüz (HTML/CSS/JS)
+├── tests/             # Smoke + e2e testler
+├── scripts/           # GitHub yayın betikleri
+├── package.json
+├── LICENSE
+└── README.md
+```
 
 ## Notlar
 
-- Sunucu dosyaları `%APPDATA%/mc-server-studio/instances/` altında tutulur (uygulamadaki 📁 butonuyla açılır).
-- Bazı CurseForge modları üçüncü taraf indirmeye kapalıdır; bunlar kurulum sonunda uyarı olarak listelenir ve elle eklenebilir.
-- İnternete açmak için router'ında sunucu portunu (varsayılan 25565) yönlendirmen gerekir.
+- Sunucu dosyaları: `%APPDATA%/mc-server-studio/instances/`
+- Bazı CurseForge modları üçüncü taraf indirmeye kapalı olabilir; elle eklenebilir
+- İnternetten bağlanmak için modemde port yönlendirme (varsayılan 25565) gerekir
+- Seed / dünya tipi yalnızca **yeni** dünyaya uygulanır — mevcut dünyayı silmek için Ayarlar → Dünyayı Sıfırla
+
+## Lisans
+
+[MIT](LICENSE)
