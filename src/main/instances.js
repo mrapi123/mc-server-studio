@@ -222,6 +222,91 @@ async function installCurseForgeManifest(zipPath, destDir, report) {
   };
 }
 
+/**
+ * Server pack'te eksik kalan istemci modlarını (animasyon vb.) client pack manifestinden tamamlar.
+ * Saf istemci render modları (Sodium/Iris...) atlanır.
+ */
+async function syncMissingFromClientPack(clientZipPath, destDir, report) {
+  const zip = new AdmZip(clientZipPath);
+  const manifestEntry = zip.getEntry('manifest.json');
+  if (!manifestEntry) {
+    report('İstemci paketinde manifest yok, senkron atlandı.');
+    return { added: 0, failedMods: [] };
+  }
+  const manifest = JSON.parse(manifestEntry.getData().toString('utf8'));
+  const files = manifest.files || [];
+
+  const existing = new Set();
+  for (const folder of ['mods', 'resourcepacks', 'shaderpacks']) {
+    try {
+      for (const n of await fsp.readdir(path.join(destDir, folder))) {
+        existing.add(n.toLowerCase());
+      }
+    } catch (_e) { /* klasör yok */ }
+  }
+
+  const missing = [];
+  const failedMods = [];
+  let checked = 0;
+
+  // Önce hangi dosyaların eksik olduğunu topla
+  for (const f of files) {
+    checked++;
+    try {
+      const fileInfo = await curseforge.getFile(f.projectID, f.fileID);
+      if (existing.has(fileInfo.fileName.toLowerCase())) continue;
+      if (resourcepack.isKnownClientOnlyJar(fileInfo.fileName)) continue;
+
+      let classId = 6;
+      try {
+        const mod = await curseforge.getMod(f.projectID);
+        classId = mod.classId || 6;
+      } catch (_e) { /* ignore */ }
+      if (classId === resourcepack.CLASS_SHADER_PACKS) continue;
+
+      const folder = resourcepack.folderForCurseClass(classId);
+      missing.push({ f, fileInfo, folder });
+    } catch (_e) {
+      // getFile başarısız — sonra failed'a eklenebilir
+    }
+    if (checked % 40 === 0) report(`İstemci listesi kontrol: ${checked}/${files.length}`);
+  }
+
+  report(`Server pack'te eksik ${missing.length} dosya (toplam istemci: ${files.length}). İndiriliyor...`);
+  let done = 0;
+  let added = 0;
+  await runLimited(missing, 4, async (item) => {
+    try {
+      const url = item.fileInfo.downloadUrl ||
+        (await curseforge.resolveDownloadUrl(item.f.projectID, item.f.fileID, item.fileInfo.fileName));
+      await fsp.mkdir(path.join(destDir, item.folder), { recursive: true });
+      await downloadFile(url, path.join(destDir, item.folder, item.fileInfo.fileName));
+      added++;
+    } catch (_e) {
+      let name = item.fileInfo.fileName;
+      try {
+        const mod = await curseforge.getMod(item.f.projectID);
+        name = mod.name;
+      } catch (_e2) { /* ignore */ }
+      failedMods.push({ projectID: item.f.projectID, fileID: item.f.fileID, name });
+    } finally {
+      done++;
+      report(`Eksik dosyalar (${done}/${missing.length})`, done, missing.length);
+    }
+  });
+
+  // Client overrides (resourcepacks vb.) birleştir
+  const overridesName = manifest.overrides || 'overrides';
+  const tmp = destDir + '_client_overrides_tmp';
+  await fsp.rm(tmp, { recursive: true, force: true });
+  zip.extractAllTo(tmp, true);
+  await copyDirInto(path.join(tmp, overridesName), destDir);
+  await fsp.rm(tmp, { recursive: true, force: true });
+
+  report(`${added} eksik mod/resource pack eklendi.`);
+  return { added, failedMods, clientTotal: files.length };
+}
+
 /* ---------------- Ortak kurulum akışı ---------------- */
 
 async function finalizeInstall(meta, sDir, report) {
@@ -353,6 +438,19 @@ async function createInstance(payload, report) {
         meta.packName = file.displayName;
         meta.packVersion = file.displayName;
         meta.failedMods = [];
+
+        // Server pack eksik mod bırakır (örn. 353 vs 469). İstemci listesinden tamamla.
+        report('İstemci paketinden eksik modlar senkronize ediliyor...');
+        const clientUrl = file.downloadUrl ||
+          (await curseforge.resolveDownloadUrl(payload.projectId, payload.fileId, file.fileName));
+        const clientZip = path.join(instanceDir(id), 'clientpack.zip');
+        await downloadFile(clientUrl, clientZip, (r, t) => {
+          if (t) report(`İstemci paketi indiriliyor (%${Math.round((r / t) * 100)})`, r, t);
+        });
+        const sync = await syncMissingFromClientPack(clientZip, sDir, report);
+        meta.failedMods = sync.failedMods || [];
+        meta.clientModCount = sync.clientTotal;
+        await fsp.unlink(clientZip).catch(() => {});
       } else {
         report('Modpack indiriliyor...');
         const url = file.downloadUrl ||

@@ -45,6 +45,10 @@ function shouldInstallMrpackFile(file) {
   return true;
 }
 
+function isKnownClientOnlyJar(fileName) {
+  return CLIENT_ONLY_RE.test(String(fileName || ''));
+}
+
 /** CurseForge classId → hedef klasör (mods / resourcepacks / shaderpacks). */
 function folderForCurseClass(classId) {
   if (classId === CLASS_RESOURCE_PACKS) return 'resourcepacks';
@@ -193,6 +197,7 @@ module.exports = {
   isResourcePackPath,
   isShaderPackPath,
   shouldInstallMrpackFile,
+  isKnownClientOnlyJar,
   folderForCurseClass,
   listResourcePackFiles,
   prepareServerResourcePack,
