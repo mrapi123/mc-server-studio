@@ -6,32 +6,31 @@ $user = Invoke-RestMethod -Uri "https://api.github.com/user" -Headers $headers
 $login = $user.login
 $email = "$($user.id)+$login@users.noreply.github.com"
 $repo = "$login/mc-server-studio"
-$tag = "v1.2.6"
+$tag = "v1.2.7"
 
 git add -A
-git -c user.name="$login" -c user.email="$email" commit -m "v1.2.6: colorwheel/oculus client-only crash + senkron filtre"
+git -c user.name="$login" -c user.email="$email" commit -m "v1.2.7: subtle_effects forge mismatch + Xaero RP secimi"
 if ($LASTEXITCODE -ne 0) { Write-Output "Commit yok" }
 git push origin main
 
 $rel = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$repo/releases" -Headers $headers -Body (@{
   tag_name = $tag
-  name = "MC Server Studio v1.2.6"
+  name = "MC Server Studio v1.2.7"
   body = @"
 ## Duzeltmeler
-- Sunucu ``colorwheel requires oculus`` ile dusuyordu: oculus/colorwheel/sodium companion gibi istemci render modlari artik sunucuya konmuyor
-- Baslatmada ve senkron sonunda bilinen istemci-only jar'lar otomatik temizlenir
-- v1.2.5: istemci listesi ``40/469`` takilmasi (paralel CF istekleri)
+- ``subtle_effects requires forge 47.4.14``: Subtle Effects istemci-only; sunucuya konmuyor / baslatmada temizleniyor
+- Resource pack secimi: Xaero ikon / minimap ve saf datapack'ler artik sunucu RP olarak secilmiyor
 
 ## Not
-Mevcut Soulrend'i silmeden de deneyebilirsin (baslatinca temizlik calisir). Takildiysan silip v1.2.6 ile yeniden kur.
+Better MC icin mevcut kurulumda SubtleEffects jar'ini silip tekrar baslatabilirsin (bu surum otomatik yapar).
 "@
   draft = $false
   prerelease = $false
 } | ConvertTo-Json) -ContentType "application/json"
 
 foreach ($a in @(
-  @{ path = "dist\MC Server Studio 1.2.6.exe"; name = "MC.Server.Studio.1.2.6.portable.exe" },
-  @{ path = "dist\MC Server Studio Setup 1.2.6.exe"; name = "MC.Server.Studio.Setup.1.2.6.exe" }
+  @{ path = "dist\MC Server Studio 1.2.7.exe"; name = "MC.Server.Studio.1.2.7.portable.exe" },
+  @{ path = "dist\MC Server Studio Setup 1.2.7.exe"; name = "MC.Server.Studio.Setup.1.2.7.exe" }
 )) {
   $url = "https://uploads.github.com/repos/$repo/releases/$($rel.id)/assets?name=$($a.name)"
   Invoke-RestMethod -Method Post -Uri $url -Headers $headers -InFile $a.path -ContentType "application/octet-stream" | Out-Null

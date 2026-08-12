@@ -27,10 +27,14 @@ function isShaderPackPath(filePath) {
 
 /**
  * Saf istemci / render modları — sunucuya konursa bağımlılık zinciri kırılır
- * (örn. colorwheel → oculus ister; oculus zaten atlanır → sunucu çöker).
+ * (örn. colorwheel → oculus; subtle_effects → daha yeni Forge ister).
  */
 const CLIENT_ONLY_RE =
-  /sodium|iris|rubidium|embeddium|oculus|optifine|xenon|colorwheel|entityculling|fancymenu|dynamic.?fps|skinlayers|sound.?physics|lambdynamic|citresewn|continuity|blur-|zoomify|screenshot|modernfix|f3(name)?|drippy|presencefootsteps|notenoughcrashes|betterf3|crash.?assistant|immediatelyfast|freecam|firstperson|mouse.?tweaks|itemzoom|controlling|catalogue|toastcontrol|light.?overlay|dynamiclights|sodiumoptions|entity.?model.?features|entity.?texture.?features|oculus|iris|reeses.?sodium|rubidium/i;
+  /sodium|iris|rubidium|embeddium|oculus|optifine|xenon|colorwheel|entityculling|fancymenu|dynamic.?fps|skinlayers|sound.?physics|lambdynamic|citresewn|continuity|blur-|zoomify|screenshot|modernfix|f3(name)?|drippy|presencefootsteps|notenoughcrashes|betterf3|crash.?assistant|immediatelyfast|freecam|firstperson|mouse.?tweaks|itemzoom|controlling|catalogue|toastcontrol|light.?overlay|dynamiclights|sodiumoptions|entity.?model.?features|entity.?texture.?features|reeses.?sodium|subtle.?effects|distanthorizons|oculus|iris/i;
+
+/** Sunucu resource-pack URL'sine asla konmaması gereken paket adları (harita ikonu vb.). */
+const SKIP_SERVER_RP_NAME_RE =
+  /xaero|minimap|journeymap|voxelmap|waypoint|antique.?atlas|icon\s*xaero/i;
 
 function shouldInstallMrpackFile(file) {
   const p = String(file.path || '').replace(/\\/g, '/');
@@ -95,8 +99,43 @@ async function listResourcePackFiles(serverDir) {
     const st = await fsp.stat(full);
     if (st.isFile()) out.push({ name, full, size: st.size });
   }
-  // En büyük paket genelde ana resource pack
   return out.sort((a, b) => b.size - a.size);
+}
+
+/** Zip içinde assets/ var mı? (datapack-only paketler sunucu RP olmamalı) */
+function zipHasClientAssets(filePath) {
+  try {
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip(filePath);
+    let hasAssets = false;
+    let hasData = false;
+    for (const e of zip.getEntries()) {
+      const n = String(e.entryName || '').replace(/\\/g, '/').toLowerCase();
+      if (n.startsWith('assets/') || n.includes('/assets/')) hasAssets = true;
+      if (n.startsWith('data/') || n.includes('/data/')) hasData = true;
+      if (hasAssets) return true;
+    }
+    // sadece data/ → datapack
+    if (hasData) return false;
+    return false;
+  } catch (_e) {
+    return true;
+  }
+}
+
+/**
+ * Sunucunun zorladığı resource-pack için aday seç.
+ * Xaero ikon / minimap ve saf datapack'leri ele; kalan en büyüğü al.
+ */
+async function pickServerResourcePack(serverDir) {
+  const packs = await listResourcePackFiles(serverDir);
+  const eligible = [];
+  for (const p of packs) {
+    if (SKIP_SERVER_RP_NAME_RE.test(p.name)) continue;
+    if (!zipHasClientAssets(p.full)) continue;
+    eligible.push(p);
+  }
+  return { packs, eligible, pack: eligible[0] || null };
 }
 
 function sha1File(filePath) {
@@ -133,13 +172,24 @@ function stopPackServer(instanceId) {
 async function prepareServerResourcePack(instanceId, serverDir, log = () => {}) {
   stopPackServer(instanceId);
 
-  const packs = await listResourcePackFiles(serverDir);
+  const { packs, eligible, pack } = await pickServerResourcePack(serverDir);
   if (!packs.length) {
     log('Resource pack bulunamadı (atlanıyor).\n');
     return null;
   }
+  if (!pack) {
+    await writeServerProperties(serverDir, {
+      'resource-pack': '',
+      'resource-pack-sha1': '',
+      'require-resource-pack': 'false'
+    });
+    log(
+      `Resource pack atlandı: ${packs.length} zip var ama uygun istemci paketi yok ` +
+      `(datapack / Xaero ikon vb. elendi). İstemci kendi launcher paketini kullanmalı.\n`
+    );
+    return null;
+  }
 
-  const pack = packs[0];
   const sha1 = await sha1File(pack.full);
   const port = 25566 + (Math.abs(hashCode(instanceId)) % 100);
 
@@ -175,7 +225,10 @@ async function prepareServerResourcePack(instanceId, serverDir, log = () => {}) 
 
   log(`Resource pack yayında: ${pack.name} → ${url}\n`);
   if (packs.length > 1) {
-    log(`Not: ${packs.length} resource pack var; sunucu paketi olarak en büyüğü seçildi (${pack.name}).\n`);
+    log(
+      `Not: ${packs.length} zip; ${eligible.length} uygun. Sunucu paketi: ${pack.name} ` +
+      `(Xaero/datapack atlandı).\n`
+    );
   }
   return { url, sha1, fileName: pack.name, port, count: packs.length };
 }
