@@ -225,6 +225,7 @@ async function installCurseForgeManifest(zipPath, destDir, report) {
 /**
  * Server pack'te eksik kalan istemci modlarını (animasyon vb.) client pack manifestinden tamamlar.
  * Saf istemci render modları (Sodium/Iris...) atlanır.
+ * CurseForge batch API kullanır — 469 tekil istek yerine ~10 batch (takılma önlenir).
  */
 async function syncMissingFromClientPack(clientZipPath, destDir, report) {
   const zip = new AdmZip(clientZipPath);
@@ -245,37 +246,43 @@ async function syncMissingFromClientPack(clientZipPath, destDir, report) {
     } catch (_e) { /* klasör yok */ }
   }
 
-  const missing = [];
   const failedMods = [];
-  let checked = 0;
+  report(`İstemci listesi: ${files.length} dosya bilgisi alınıyor...`);
+  const filesById = await curseforge.getFilesForManifest(files, (done, total) => {
+    report(`İstemci listesi kontrol: ${done}/${total}`, done, total);
+  });
 
-  // Önce hangi dosyaların eksik olduğunu topla
+  const candidates = [];
   for (const f of files) {
-    checked++;
-    try {
-      const fileInfo = await curseforge.getFile(f.projectID, f.fileID);
-      if (existing.has(fileInfo.fileName.toLowerCase())) continue;
-      if (resourcepack.isKnownClientOnlyJar(fileInfo.fileName)) continue;
-
-      let classId = 6;
-      try {
-        const mod = await curseforge.getMod(f.projectID);
-        classId = mod.classId || 6;
-      } catch (_e) { /* ignore */ }
-      if (classId === resourcepack.CLASS_SHADER_PACKS) continue;
-
-      const folder = resourcepack.folderForCurseClass(classId);
-      missing.push({ f, fileInfo, folder });
-    } catch (_e) {
-      // getFile başarısız — sonra failed'a eklenebilir
+    const fileInfo = filesById.get(f.fileID) || filesById.get(Number(f.fileID));
+    if (!fileInfo || !fileInfo.fileName) {
+      failedMods.push({ projectID: f.projectID, fileID: f.fileID, name: `file ${f.fileID}` });
+      continue;
     }
-    if (checked % 40 === 0) report(`İstemci listesi kontrol: ${checked}/${files.length}`);
+    if (existing.has(fileInfo.fileName.toLowerCase())) continue;
+    if (resourcepack.isKnownClientOnlyJar(fileInfo.fileName)) continue;
+    candidates.push({ f, fileInfo });
+  }
+
+  report(`${candidates.length} aday dosya için proje bilgisi alınıyor...`);
+  const modIds = candidates.map((c) => c.f.projectID);
+  const modsById = await curseforge.getModsByIds(modIds, (done, total) => {
+    report(`Proje bilgisi: ${done}/${total}`, done, total);
+  });
+
+  const missing = [];
+  for (const item of candidates) {
+    const mod = modsById.get(item.f.projectID) || modsById.get(Number(item.f.projectID));
+    const classId = (mod && mod.classId) || 6;
+    if (classId === resourcepack.CLASS_SHADER_PACKS) continue;
+    const folder = resourcepack.folderForCurseClass(classId);
+    missing.push({ ...item, folder });
   }
 
   report(`Server pack'te eksik ${missing.length} dosya (toplam istemci: ${files.length}). İndiriliyor...`);
   let done = 0;
   let added = 0;
-  await runLimited(missing, 4, async (item) => {
+  await runLimited(missing, 6, async (item) => {
     try {
       const url = item.fileInfo.downloadUrl ||
         (await curseforge.resolveDownloadUrl(item.f.projectID, item.f.fileID, item.fileInfo.fileName));
@@ -284,10 +291,8 @@ async function syncMissingFromClientPack(clientZipPath, destDir, report) {
       added++;
     } catch (_e) {
       let name = item.fileInfo.fileName;
-      try {
-        const mod = await curseforge.getMod(item.f.projectID);
-        name = mod.name;
-      } catch (_e2) { /* ignore */ }
+      const mod = modsById.get(item.f.projectID) || modsById.get(Number(item.f.projectID));
+      if (mod && mod.name) name = mod.name;
       failedMods.push({ projectID: item.f.projectID, fileID: item.f.fileID, name });
     } finally {
       done++;

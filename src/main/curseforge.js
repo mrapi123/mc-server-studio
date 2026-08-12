@@ -1,4 +1,4 @@
-const { fetchJson } = require('./util');
+const { fetchJson, runLimited } = require('./util');
 const settings = require('./settings');
 
 const GAME_MINECRAFT = 432;
@@ -12,14 +12,30 @@ const CLASS_MODS = 6;
 function apiConfig() {
   const key = settings.get().curseforgeApiKey;
   if (key) {
-    return { base: 'https://api.curseforge.com/v1', headers: { 'x-api-key': key } };
+    return { base: 'https://api.curseforge.com/v1', headers: { 'x-api-key': key }, hasKey: true };
   }
-  return { base: 'https://api.curse.tools/v1/cf', headers: {} };
+  return { base: 'https://api.curse.tools/v1/cf', headers: {}, hasKey: false };
 }
 
 async function cfJson(pathPart) {
   const { base, headers } = apiConfig();
   return fetchJson(`${base}${pathPart}`, { headers });
+}
+
+async function cfPostJson(pathPart, body) {
+  const { base, headers } = apiConfig();
+  return fetchJson(`${base}${pathPart}`, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+}
+
+/** Diziyi chunkSize'lık parçalara böler. */
+function chunk(arr, chunkSize) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += chunkSize) out.push(arr.slice(i, i + chunkSize));
+  return out;
 }
 
 function mapMod(m) {
@@ -81,6 +97,82 @@ async function getMod(modId) {
   return data.data;
 }
 
+/**
+ * Manifest dosya listesi için file bilgilerini toplar.
+ * Resmi API anahtarı varsa POST batch; yoksa (curse.tools) paralel tekil istek.
+ * Eski sıralı döngü 40/469'da takılıyor gibi görünüyordu.
+ */
+async function getFilesForManifest(entries, onProgress) {
+  const byId = new Map();
+  const list = entries || [];
+  const total = list.length;
+  if (!total) return byId;
+
+  const { hasKey } = apiConfig();
+  if (hasKey) {
+    try {
+      const fileIds = [...new Set(list.map((e) => Number(e.fileID)).filter(Boolean))];
+      let done = 0;
+      for (const ids of chunk(fileIds, 50)) {
+        const data = await cfPostJson('/mods/files', { fileIds: ids });
+        for (const f of data.data || []) byId.set(f.id, f);
+        done += ids.length;
+        if (onProgress) onProgress(Math.min(done, total), total);
+      }
+      return byId;
+    } catch (_e) {
+      // batch yoksa tekile düş
+    }
+  }
+
+  let done = 0;
+  await runLimited(list, 12, async (e) => {
+    try {
+      const f = await getFile(e.projectID, e.fileID);
+      if (f) byId.set(f.id || e.fileID, f);
+    } catch (_err) { /* sonra failed */ }
+    finally {
+      done++;
+      if (onProgress) onProgress(done, total);
+    }
+  });
+  return byId;
+}
+
+/** Mod bilgilerini toplar — anahtar varsa batch, yoksa paralel getMod. */
+async function getModsByIds(modIds, onProgress) {
+  const unique = [...new Set(modIds.map(Number).filter(Boolean))];
+  const byId = new Map();
+  if (!unique.length) return byId;
+
+  const { hasKey } = apiConfig();
+  if (hasKey) {
+    try {
+      let done = 0;
+      for (const ids of chunk(unique, 50)) {
+        const data = await cfPostJson('/mods', { modIds: ids });
+        for (const m of data.data || []) byId.set(m.id, m);
+        done += ids.length;
+        if (onProgress) onProgress(done, unique.length);
+      }
+      return byId;
+    } catch (_e) { /* fallback */ }
+  }
+
+  let done = 0;
+  await runLimited(unique, 12, async (id) => {
+    try {
+      const m = await getMod(id);
+      if (m) byId.set(m.id || id, m);
+    } catch (_err) { /* ignore */ }
+    finally {
+      done++;
+      if (onProgress) onProgress(done, unique.length);
+    }
+  });
+  return byId;
+}
+
 /** Dosya için indirilebilir URL bulur; API vermezse CDN adresini kendisi kurar. */
 async function resolveDownloadUrl(modId, fileId, fileName) {
   try {
@@ -122,6 +214,8 @@ module.exports = {
   getPackVersions,
   getFile,
   getMod,
+  getFilesForManifest,
+  getModsByIds,
   resolveDownloadUrl,
   searchMods,
   getModVersions
