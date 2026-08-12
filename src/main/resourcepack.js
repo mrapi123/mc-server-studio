@@ -25,9 +25,12 @@ function isShaderPackPath(filePath) {
   return norm.startsWith('shaderpacks/') || /(^|\/)shaderpacks\//.test(norm);
 }
 
-/** Modrinth: resource pack'leri her zaman al; client-only render modlarını atla, animasyon modlarını tut. */
+/**
+ * Saf istemci / render modları — sunucuya konursa bağımlılık zinciri kırılır
+ * (örn. colorwheel → oculus ister; oculus zaten atlanır → sunucu çöker).
+ */
 const CLIENT_ONLY_RE =
-  /sodium|iris|rubidium|embeddium|oculus|optifine|entityculling|fancymenu|dynamic.?fps|skinlayers|sound.?physics|lambdynamic|citresewn|continuity|oculus|blur-|zoomify|screenshot|modernfix|f3(name)?|drippy|presencefootsteps|notenoughcrashes|betterf3/i;
+  /sodium|iris|rubidium|embeddium|oculus|optifine|xenon|colorwheel|entityculling|fancymenu|dynamic.?fps|skinlayers|sound.?physics|lambdynamic|citresewn|continuity|blur-|zoomify|screenshot|modernfix|f3(name)?|drippy|presencefootsteps|notenoughcrashes|betterf3|crash.?assistant|immediatelyfast|freecam|firstperson|mouse.?tweaks|itemzoom|controlling|catalogue|toastcontrol|light.?overlay|dynamiclights|sodiumoptions|entity.?model.?features|entity.?texture.?features|oculus|iris|reeses.?sodium|rubidium/i;
 
 function shouldInstallMrpackFile(file) {
   const p = String(file.path || '').replace(/\\/g, '/');
@@ -47,6 +50,27 @@ function shouldInstallMrpackFile(file) {
 
 function isKnownClientOnlyJar(fileName) {
   return CLIENT_ONLY_RE.test(String(fileName || ''));
+}
+
+/** mods klasöründen bilinen istemci-only jar'ları siler (kısmi kurulum / eski sync temizliği). */
+async function purgeClientOnlyMods(serverDir) {
+  const modsDir = path.join(serverDir, 'mods');
+  let removed = [];
+  let names;
+  try {
+    names = await fsp.readdir(modsDir);
+  } catch (_e) {
+    return removed;
+  }
+  for (const name of names) {
+    if (!/\.jar$/i.test(name)) continue;
+    if (!isKnownClientOnlyJar(name)) continue;
+    try {
+      await fsp.unlink(path.join(modsDir, name));
+      removed.push(name);
+    } catch (_e) { /* kilitli olabilir */ }
+  }
+  return removed;
 }
 
 /** CurseForge classId → hedef klasör (mods / resourcepacks / shaderpacks). */
@@ -198,6 +222,7 @@ module.exports = {
   isShaderPackPath,
   shouldInstallMrpackFile,
   isKnownClientOnlyJar,
+  purgeClientOnlyMods,
   folderForCurseClass,
   listResourcePackFiles,
   prepareServerResourcePack,

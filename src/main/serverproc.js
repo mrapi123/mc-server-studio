@@ -81,6 +81,16 @@ async function start(id) {
   }
 
   const sDir = instances.serverDir(id);
+  let pendingLog = '';
+
+  // İstemci-only jar'lar (colorwheel→oculus vb.) sunucuyu düşürür — başlatmadan temizle
+  try {
+    const purged = await resourcepack.purgeClientOnlyMods(sDir);
+    if (purged.length) {
+      pendingLog = `[Temizlik] ${purged.length} istemci-only mod kaldırıldı.\n`;
+    }
+  } catch (_e) { /* devam */ }
+
   let launch;
   try {
     launch = loaders.resolveLaunch(sDir, meta.memoryMb || 4096);
@@ -131,6 +141,7 @@ async function start(id) {
     players: new Set()
   });
   notify('server:status-change', { id, status: 'starting' });
+  if (pendingLog) pushLog(id, pendingLog);
   pushLog(id, `> ${javaExe} ${args.join(' ')}\n`);
 
   proc.stdout.on('data', (d) => {

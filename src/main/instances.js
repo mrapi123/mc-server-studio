@@ -308,6 +308,11 @@ async function syncMissingFromClientPack(clientZipPath, destDir, report) {
   await copyDirInto(path.join(tmp, overridesName), destDir);
   await fsp.rm(tmp, { recursive: true, force: true });
 
+  const purged = await resourcepack.purgeClientOnlyMods(destDir);
+  if (purged.length) {
+    report(`${purged.length} istemci-only mod sunucudan çıkarıldı.`);
+  }
+
   report(`${added} eksik mod/resource pack eklendi.`);
   return { added, failedMods, clientTotal: files.length };
 }
