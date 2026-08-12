@@ -13,21 +13,25 @@ git -c user.name="$login" -c user.email="$email" commit -m "v1.2.9: istemci modl
 if ($LASTEXITCODE -ne 0) { Write-Output "Commit yok" }
 git push origin main
 
-$rel = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$repo/releases" -Headers $headers -Body (@{
-  tag_name = $tag
-  name = "MC Server Studio v1.2.9"
-  body = @"
+$body = @"
 ## Degisiklik
-- Istemci pack'teki modlar artik **silinmiyor** (watut, wakes vb. kanal uyumsuzlugu giderildi)
-- Otomatik purge kapatildi — sunucu istemciyle ayni mod listesine yaklasir
-- Yalnizca sunucuyu kesin dusturen birkaçı atlanir (stop_rendering, audioimprovements, sodium/oculus/colorwheel, subtle_effects, particle_core)
+- Istemci pack modlari artik silinmiyor (watut, wakes vb.)
+- Otomatik purge kapatildi
+- Sadece sunucuyu kesin dusturen birkac atlanir (stop_rendering, audioimprovements, sodium/oculus/colorwheel, subtle_effects, particle_core)
 
 ## Not
-Mevcut Better MC'ye eksik jar'lar geri kondu; sunucuyu yeniden baslatip baglan.
+Mevcut Better MC'ye eksik jarlar geri kondu; sunucuyu yeniden baslatip baglan.
 "@
+
+$payload = @{
+  tag_name = $tag
+  name = "MC Server Studio v1.2.9"
+  body = $body
   draft = $false
   prerelease = $false
-} | ConvertTo-Json) -ContentType "application/json"
+} | ConvertTo-Json -Depth 5
+
+$rel = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$repo/releases" -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($payload)) -ContentType "application/json; charset=utf-8"
 
 foreach ($a in @(
   @{ path = "dist\MC Server Studio 1.2.9.exe"; name = "MC.Server.Studio.1.2.9.portable.exe" },
