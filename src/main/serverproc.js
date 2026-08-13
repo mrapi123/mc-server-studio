@@ -87,7 +87,7 @@ async function start(id) {
   try {
     const purged = await resourcepack.purgeClientOnlyMods(sDir);
     if (purged.length) {
-      pendingLog = `[Temizlik] ${purged.length} istemci-only mod kaldırıldı.\n`;
+      pendingLog = `[Temizlik] ${purged.length} hard-crash istemci modu .disabled yapıldı.\n`;
     }
   } catch (_e) { /* devam */ }
 

@@ -20,20 +20,24 @@ function isResourcePackPath(filePath) {
   return norm.startsWith('resourcepacks/') || /(^|\/)resourcepacks\//.test(norm);
 }
 
+function isDatapackPath(filePath) {
+  const norm = String(filePath || '').replace(/\\/g, '/').toLowerCase();
+  return norm.startsWith('datapacks/') || /(^|\/)datapacks\//.test(norm);
+}
+
 function isShaderPackPath(filePath) {
   const norm = String(filePath || '').replace(/\\/g, '/').toLowerCase();
   return norm.startsWith('shaderpacks/') || /(^|\/)shaderpacks\//.test(norm);
 }
 
 /**
- * Sadece sunucuyu kesinlikle düşüren / eksik bağımlılıklı render modları.
- * Kullanıcı: istemciyle aynı liste — genelde silme/atlamıyoruz.
- * (Forge zaten işaretli client-only jar'ları kendi atlar.)
+ * Sadece sunucuyu kesinlikle düşüren / bozuk bağımlılıklı istemci görsel modları.
+ * Continuity: Connector üzerinden sunucuda boş version range ile crash.
+ * Animasyon/UI kanalı (watut/wakes) KALIR.
  */
 function isKnownClientOnlyJar(fileName) {
   const n = String(fileName || '');
-  // Kelime sınırı: "irish" / rastgele isimlere yanlış pozitif olmasın
-  return /(?:^|[^a-z0-9])(?:stop.?rendering|audio.?improvements|subtle.?effects|colorwheel|sodium|iris|rubidium|embeddium|oculus|optifine|xenon|particle.?core)(?:[^a-z0-9]|$)/i.test(n);
+  return /(?:^|[^a-z0-9])(?:stop.?rendering|audio.?improvements|subtle.?effects|colorwheel|sodium|iris|rubidium|embeddium|oculus|optifine|xenon|particle.?core|continuity|citresewn|entity.?texture.?features|entity.?model.?features|lambdynamiclights|dynamic.?lights|not.?enough.?animations|skin.?layers.?3d)(?:[^a-z0-9]|$)/i.test(n);
 }
 
 /** Sunucu resource-pack URL'sine asla konmaması gereken paket adları (harita ikonu vb.). */
@@ -43,7 +47,7 @@ const SKIP_SERVER_RP_NAME_RE =
 function shouldInstallMrpackFile(file) {
   const p = String(file.path || '').replace(/\\/g, '/');
   const low = p.toLowerCase();
-  if (isResourcePackPath(p)) return true;
+  if (isResourcePackPath(p) || isDatapackPath(p)) return true;
   if (isShaderPackPath(p)) return false;
   if (file.env && file.env.server === 'unsupported') {
     if (low.startsWith('mods/')) {
@@ -66,8 +70,8 @@ function isClientOnlyByJarMeta(_jarPath) {
 }
 
 /**
- * Yalnızca sunucuyu düşüren hard-crash jar'ları siler (Sodium/Iris/colorwheel…).
- * Animasyon/UI kanalı modları (watut, wakes vb.) korunur — "server missing mods" olmasın.
+ * Hard-crash istemci jar'larını silmez — .disabled yapar (yedek kalsın).
+ * Continuity vb. sunucuyu açmadan düşürür; istemci pack'te kalır.
  */
 async function purgeClientOnlyMods(serverDir) {
   const modsDir = path.join(serverDir, 'mods');
@@ -80,18 +84,24 @@ async function purgeClientOnlyMods(serverDir) {
   const removed = [];
   for (const name of names) {
     if (!/\.jar$/i.test(name) || !isKnownClientOnlyJar(name)) continue;
+    const from = path.join(modsDir, name);
+    const to = path.join(modsDir, `${name}.disabled`);
     try {
-      await fsp.unlink(path.join(modsDir, name));
+      if (fs.existsSync(to)) await fsp.unlink(from);
+      else await fsp.rename(from, to);
       removed.push(name);
     } catch (_e) { /* kilitliyse atla */ }
   }
   return removed;
 }
 
-/** CurseForge classId → hedef klasör (mods / resourcepacks / shaderpacks). */
+const CLASS_DATAPACKS = 6945;
+
+/** CurseForge classId → hedef klasör (mods / resourcepacks / shaderpacks / datapacks). */
 function folderForCurseClass(classId) {
   if (classId === CLASS_RESOURCE_PACKS) return 'resourcepacks';
   if (classId === CLASS_SHADER_PACKS) return 'shaderpacks';
+  if (classId === CLASS_DATAPACKS) return 'datapacks';
   return 'mods';
 }
 
@@ -282,8 +292,10 @@ function getPackServerInfo(instanceId) {
 module.exports = {
   CLASS_RESOURCE_PACKS,
   CLASS_SHADER_PACKS,
+  CLASS_DATAPACKS,
   isResourcePackPath,
   isShaderPackPath,
+  isDatapackPath,
   shouldInstallMrpackFile,
   isKnownClientOnlyJar,
   purgeClientOnlyMods,

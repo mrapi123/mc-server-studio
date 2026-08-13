@@ -6,27 +6,26 @@ $user = Invoke-RestMethod -Uri "https://api.github.com/user" -Headers $headers
 $login = $user.login
 $email = "$($user.id)+$login@users.noreply.github.com"
 $repo = "$login/mc-server-studio"
-$tag = "v1.2.11"
+$tag = "v1.2.12"
 
 git add -A
-git -c user.name="$login" -c user.email="$email" commit -m "v1.2.11: mod/modpack arama yazma ve filtre duzeltmeleri"
+git -c user.name="$login" -c user.email="$email" commit -m "v1.2.12: continuity crash, datapacks, arama yazma"
 if ($LASTEXITCODE -ne 0) { Write-Output "Commit yok (veya zaten commitli)" }
 git push origin main
 
 $body = @"
 ## Degisiklik
-- Mod ve modpack arama kutularina yazma sorunu giderildi (SVG sprite / focus)
-- Yanlis loader/MC filtresinde 0 sonuc yerine otomatik genisletme
-- Modrinth'te bulunamayan pack'ler icin CurseForge yedek arama
-- Form submit ile Ara (Enter) duzgun calisir
+- Continuity / CIT Resewn / ETF / EMF vb. sunucuyu dusturen gorsel modlar .disabled yapilir (silinmez)
+- CurseForge datapack (class 6945) -> datapacks/ klasoru
+- Mod/modpack arama yazma + filtre genisletme (1.2.11 birikimi)
 
-## Not
-Onceki surumu kapatip 1.2.11'i kur.
+## Better MC notu
+Sunucuda Continuity acikken Forge 'bos version range' ile dusuyordu. BMC instance'inda Continuity kapatildi — tekrar Baslat dene.
 "@
 
 $payload = @{
   tag_name = $tag
-  name = "MC Server Studio v1.2.11"
+  name = "MC Server Studio v1.2.12"
   body = $body
   draft = $false
   prerelease = $false
@@ -47,8 +46,8 @@ if ($existing) {
 }
 
 foreach ($a in @(
-  @{ path = "dist\MC Server Studio 1.2.11.exe"; name = "MC.Server.Studio.1.2.11.portable.exe" },
-  @{ path = "dist\MC Server Studio Setup 1.2.11.exe"; name = "MC.Server.Studio.Setup.1.2.11.exe" }
+  @{ path = "dist\MC Server Studio 1.2.12.exe"; name = "MC.Server.Studio.1.2.12.portable.exe" },
+  @{ path = "dist\MC Server Studio Setup 1.2.12.exe"; name = "MC.Server.Studio.Setup.1.2.12.exe" }
 )) {
   if (-not (Test-Path $a.path)) { throw "Eksik asset: $($a.path)" }
   $url = "https://uploads.github.com/repos/$repo/releases/$($rel.id)/assets?name=$($a.name)"

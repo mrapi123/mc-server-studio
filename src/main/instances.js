@@ -254,7 +254,7 @@ async function syncMissingFromClientPack(clientZipPath, destDir, report) {
   const files = manifest.files || [];
 
   const existing = new Set();
-  for (const folder of ['mods', 'resourcepacks', 'shaderpacks']) {
+  for (const folder of ['mods', 'resourcepacks', 'shaderpacks', 'datapacks']) {
     try {
       for (const n of await fsp.readdir(path.join(destDir, folder))) {
         existing.add(n.toLowerCase());

@@ -6,12 +6,12 @@
 
 Modrinth ve CurseForge modpack'lerini indirip kendi bilgisayarında Minecraft sunucusu olarak kuran, üzerine ekstra mod ekleyebileceğin, Aternos tarzı ayarlara sahip masaüstü uygulaması.
 
-**İndir:** [Son sürüm (v1.2.11)](https://github.com/mrapi123/mc-server-studio/releases/latest)
+**İndir:** [Son sürüm (v1.2.12)](https://github.com/mrapi123/mc-server-studio/releases/latest)
 
 | Dosya | Ne işe yarar |
 | --- | --- |
-| `MC.Server.Studio.1.2.11.portable.exe` | Kurulum yok, çift tıkla çalışır |
-| `MC.Server.Studio.Setup.1.2.11.exe` | Kurulum sihirbazı, Başlat menüsüne ekler |
+| `MC.Server.Studio.1.2.12.portable.exe` | Kurulum yok, çift tıkla çalışır |
+| `MC.Server.Studio.Setup.1.2.12.exe` | Kurulum sihirbazı, Başlat menüsüne ekler |
 
 Windows SmartScreen uyarısında **Ek bilgi → Yine de çalıştır** de (uygulama imzasızdır).
 
@@ -19,11 +19,10 @@ Windows SmartScreen uyarısında **Ek bilgi → Yine de çalıştır** de (uygul
 
 ## Özellikler
 
-- **Mod / modpack arama** — Modrinth ve CurseForge; yazılabilir arama kutuları, boş sonuçta filtre genişletme / CurseForge yedek arama
-- **Tek tıkla kurulum** — Forge / NeoForge / Fabric / Quilt / vanilla; CurseForge'da server pack varsa onu kullanır
-- **İstemci senkronu** — Server pack eksik kaldığında istemci paketinden kalan modları tamamlar (ör. 353 → 469)
-- **Resource pack** — Paketteki uygun resource pack'i yerel HTTP ile oyunculara sunar (Xaero ikon / saf datapack elenir)
-- **Güvenli atlama** — Sunucuyu düşüren render modları (Sodium, Iris/Oculus, colorwheel, subtle_effects, stop_rendering…) indirilmez / temizlenir; animasyon/UI kanalı modları (watut, wakes vb.) korunur
+- **Modpack kurulum** — Forge / NeoForge / Fabric / Quilt / vanilla; CurseForge server pack + istemci senkronu
+- **Güvenli atlama** — Sunucuyu düşüren görsel modlar (Continuity, Sodium, Iris/Oculus, colorwheel…) `.disabled` yapılır (silinmez); watut/wakes vb. kanal modları korunur
+- **Datapack / resource pack** — Modpack overrides + CurseForge datapack (class 6945) `datapacks/` klasörüne; RP yerel HTTP ile oyunculara sunulur
+- **Mod / modpack arama** — Yazılabilir arama, filtre genişletme, Modrinth boşsa CurseForge yedek arama
 - **Otomatik Java** — Mojang meta verisine göre gereken sürümü bulur, yoksa Temurin JRE indirir
 - **Ekstra mod** — Modrinth/CurseForge'dan ara veya `.jar` dosyası ekle, aç/kapat, sil
 - **Konsol** — Canlı renkli log, komut gönderme, ↑↓ geçmiş
