@@ -6,34 +6,32 @@ $user = Invoke-RestMethod -Uri "https://api.github.com/user" -Headers $headers
 $login = $user.login
 $email = "$($user.id)+$login@users.noreply.github.com"
 $repo = "$login/mc-server-studio"
-$tag = "v1.2.10"
+$tag = "v1.2.11"
 
 git add -A
-git -c user.name="$login" -c user.email="$email" commit -m "v1.2.10: hard-crash purge, zip-slip korumasi, README"
+git -c user.name="$login" -c user.email="$email" commit -m "v1.2.11: mod/modpack arama yazma ve filtre duzeltmeleri"
 if ($LASTEXITCODE -ne 0) { Write-Output "Commit yok (veya zaten commitli)" }
 git push origin main
 
 $body = @"
 ## Degisiklik
-- Hard-crash istemci modlari (Sodium/Iris/Oculus/colorwheel/subtle_effects/stop_rendering...) kurulum sonunda ve sunucu acilisinda temizlenir
-- Animasyon/UI kanal modlari (watut, wakes vb.) korunur — silinmez
-- Zip slip korumasi (mrpack + server pack acma)
-- Spawn hatasinda resource-pack HTTP kapatilir
-- README v1.2.10
+- Mod ve modpack arama kutularina yazma sorunu giderildi (SVG sprite / focus)
+- Yanlis loader/MC filtresinde 0 sonuc yerine otomatik genisletme
+- Modrinth'te bulunamayan pack'ler icin CurseForge yedek arama
+- Form submit ile Ara (Enter) duzgun calisir
 
 ## Not
-Onceki kurulumlarda sorun varsa sunucuyu yeniden baslat; temizlik otomatik calisir.
+Onceki surumu kapatip 1.2.11'i kur.
 "@
 
 $payload = @{
   tag_name = $tag
-  name = "MC Server Studio v1.2.10"
+  name = "MC Server Studio v1.2.11"
   body = $body
   draft = $false
   prerelease = $false
 } | ConvertTo-Json -Depth 5
 
-# Tag varsa release guncelle / yoksa olustur
 $existing = $null
 try {
   $existing = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/tags/$tag" -Headers $headers
@@ -49,8 +47,8 @@ if ($existing) {
 }
 
 foreach ($a in @(
-  @{ path = "dist\MC Server Studio 1.2.10.exe"; name = "MC.Server.Studio.1.2.10.portable.exe" },
-  @{ path = "dist\MC Server Studio Setup 1.2.10.exe"; name = "MC.Server.Studio.Setup.1.2.10.exe" }
+  @{ path = "dist\MC Server Studio 1.2.11.exe"; name = "MC.Server.Studio.1.2.11.portable.exe" },
+  @{ path = "dist\MC Server Studio Setup 1.2.11.exe"; name = "MC.Server.Studio.Setup.1.2.11.exe" }
 )) {
   if (-not (Test-Path $a.path)) { throw "Eksik asset: $($a.path)" }
   $url = "https://uploads.github.com/repos/$repo/releases/$($rel.id)/assets?name=$($a.name)"

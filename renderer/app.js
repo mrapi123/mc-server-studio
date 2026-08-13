@@ -163,16 +163,27 @@ async function startVanillaInstall() {
 async function doSearch() {
   const query = $('#search-input').value.trim();
   const results = $('#search-results');
+  if (!query) {
+    results.innerHTML = '<p class="muted">Aramak için bir şey yaz (örn. Better MC, Soulrend).</p>';
+    $('#search-input').focus();
+    return;
+  }
   results.innerHTML = '<p class="muted">Aranıyor...</p>';
   try {
-    const packs = await window.api.searchPacks({ source: state.createSource, query });
+    let packs = await window.api.searchPacks({ source: state.createSource, query });
+    let note = '';
+    // Modrinth'te yoksa CurseForge'a düş (Soulrend vb.)
+    if (!packs.length && state.createSource === 'modrinth') {
+      packs = await window.api.searchPacks({ source: 'curseforge', query });
+      if (packs.length) note = 'Modrinth\'te yok; CurseForge sonuçları gösteriliyor.';
+    }
     if (!packs.length) {
       results.innerHTML = state.createSource === 'modrinth'
-        ? '<p class="muted">Modrinth\'te sonuç yok. <b>CurseForge</b> sekmesini dene (Soulrend orada).</p>'
+        ? '<p class="muted">Sonuç yok. <b>CurseForge</b> sekmesini dene.</p>'
         : '<p class="muted">Sonuç bulunamadı.</p>';
       return;
     }
-    results.innerHTML = '';
+    results.innerHTML = note ? `<p class="muted small">${note}</p>` : '';
     for (const pack of packs) {
       const card = document.createElement('div');
       card.className = 'pack-card';
@@ -188,7 +199,7 @@ async function doSearch() {
       results.appendChild(card);
     }
   } catch (err) {
-    results.innerHTML = `<p class="muted">Arama hatası: ${esc(err.message)}</p>`;
+    results.innerHTML = `<p class="muted">Arama hatası: ${esc(errMsg(err))}</p>`;
   }
 }
 
@@ -721,33 +732,47 @@ function switchModSource(source) {
 }
 
 async function openModModal() {
-  const inst = await window.api.getInstance({ id: state.currentId });
-  $('#mod-filter-info').textContent =
-    `Filtre: MC ${inst.mcVersion || '?'} + ${inst.loader || '?'} (sunucuyla uyumlu modlar aranır)`;
+  let filterLabel = 'Filtre: sunucu sürümü okunamadı — tüm modlar';
+  try {
+    const inst = await window.api.getInstance({ id: state.currentId });
+    const loader = String(inst.loader || '').toLowerCase() || '?';
+    filterLabel = `Filtre: MC ${inst.mcVersion || '?'} + ${loader} (uygun dosya yoksa genişletilir)`;
+  } catch (_e) { /* yarı kurulum */ }
+  $('#mod-filter-info').textContent = filterLabel;
   $('#mod-search-results').innerHTML = '';
-  $('#mod-search-input').value = '';
   $('#modal-mod').classList.remove('hidden');
-  setTimeout(() => {
-    const input = $('#mod-search-input');
-    input.focus();
-    input.select();
-  }, 50);
+  const input = $('#mod-search-input');
+  // select() bazı Electron sürümlerinde yazmayı bozuyor — sadece focus
+  requestAnimationFrame(() => {
+    input.focus({ preventScroll: true });
+  });
 }
 
 async function doModSearch() {
-  const inst = await window.api.getInstance({ id: state.currentId });
   const query = $('#mod-search-input').value.trim();
   const results = $('#mod-search-results');
+  if (!query) {
+    results.innerHTML = '<p class="muted">Aramak için bir şey yaz (örn. JEI).</p>';
+    $('#mod-search-input').focus();
+    return;
+  }
   results.innerHTML = '<p class="muted">Aranıyor...</p>';
+  let loader = null;
+  let mcVersion = null;
+  try {
+    const inst = await window.api.getInstance({ id: state.currentId });
+    loader = inst.loader || null;
+    mcVersion = inst.mcVersion || null;
+  } catch (_e) { /* filtre olmadan ara */ }
   try {
     const mods = await window.api.searchMods({
       source: state.modSource,
       query,
-      loader: inst.loader,
-      mcVersion: inst.mcVersion
+      loader,
+      mcVersion
     });
     if (!mods.length) {
-      results.innerHTML = '<p class="muted">Sonuç yok. Diğer kaynağı dene.</p>';
+      results.innerHTML = '<p class="muted">Sonuç yok. Diğer kaynağı (Modrinth / CurseForge) dene.</p>';
       return;
     }
     results.innerHTML = '';
@@ -760,7 +785,7 @@ async function doModSearch() {
           <div class="mres-name">${esc(mod.name)}</div>
           <div class="mres-desc">${esc(mod.description)}</div>
         </div>
-        <button class="btn btn-primary">Ekle</button>`;
+        <button class="btn btn-primary" type="button">Ekle</button>`;
       bindImgFallback(row);
       row.querySelector('button').addEventListener('click', async (e) => {
         const btn = e.currentTarget;
@@ -770,8 +795,8 @@ async function doModSearch() {
           const versions = await window.api.getModVersions({
             source: mod.source,
             projectId: mod.id,
-            loader: inst.loader,
-            mcVersion: inst.mcVersion
+            loader,
+            mcVersion
           });
           if (!versions.length) throw new Error('Bu MC sürümü/loader için uygun dosya yok.');
           const v = versions[0];
@@ -789,13 +814,13 @@ async function doModSearch() {
         } catch (err) {
           btn.disabled = false;
           btn.textContent = 'Ekle';
-          toast(`${mod.name} eklenemedi: ${err.message}`, true);
+          toast(`${mod.name} eklenemedi: ${errMsg(err)}`, true);
         }
       });
       results.appendChild(row);
     }
   } catch (err) {
-    results.innerHTML = `<p class="muted">Arama hatası: ${esc(err.message)}</p>`;
+    results.innerHTML = `<p class="muted">Arama hatası: ${esc(errMsg(err))}</p>`;
   }
 }
 
@@ -990,8 +1015,14 @@ function bind() {
 
   $$('#source-tabs .tab').forEach((t) =>
     t.addEventListener('click', () => switchCreateSource(t.dataset.source)));
-  $('#btn-search').addEventListener('click', doSearch);
-  $('#search-input').addEventListener('keydown', (e) => e.key === 'Enter' && doSearch());
+  $('#pack-search-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    doSearch();
+  });
+  $('#search-input').addEventListener('mousedown', (e) => {
+    e.stopPropagation();
+    e.currentTarget.focus();
+  });
   $('#btn-import-file').addEventListener('click', importFromFile);
   $('#btn-vanilla-install').addEventListener('click', startVanillaInstall);
   $('#vanilla-version').addEventListener('change', () => {
@@ -1056,11 +1087,20 @@ function bind() {
   });
   $$('#mod-source-tabs .tab').forEach((t) =>
     t.addEventListener('click', () => switchModSource(t.dataset.source)));
-  $('#btn-mod-search').addEventListener('click', doModSearch);
-  $('#mod-search-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') doModSearch();
+  $('#mod-search-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    doModSearch();
+  });
+  $('#mod-search-input').addEventListener('mousedown', (e) => {
+    e.stopPropagation();
+    e.currentTarget.focus();
   });
   $('#mod-close').addEventListener('click', () => $('#modal-mod').classList.add('hidden'));
+  // Backdrop tıklanınca kapat; modal içeriğine tıklanınca kapanmasın
+  $('#modal-mod').addEventListener('mousedown', (e) => {
+    if (e.target === $('#modal-mod')) $('#modal-mod').classList.add('hidden');
+  });
+  $('#modal-mod .modal').addEventListener('mousedown', (e) => e.stopPropagation());
 
   // ayarlar
   $('#btn-save-instance').addEventListener('click', saveInstanceSettings);

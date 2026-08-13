@@ -23,8 +23,12 @@ function registerIpc(getWindow) {
 
   /* ---- modpack arama ---- */
   ipcMain.handle('packs:search', async (_e, { source, query }) => {
-    if (source === 'curseforge') return curseforge.searchPacks(query);
-    return modrinth.searchPacks(query);
+    try {
+      if (source === 'curseforge') return await curseforge.searchPacks(query);
+      return await modrinth.searchPacks(query);
+    } catch (err) {
+      throw new Error(err && err.message ? err.message : String(err));
+    }
   });
 
   ipcMain.handle('packs:versions', async (_e, { source, projectId }) => {
@@ -100,9 +104,27 @@ function registerIpc(getWindow) {
 
   /* ---- modlar ---- */
   ipcMain.handle('mods:list', (_e, { id }) => mods.listMods(id));
-  ipcMain.handle('mods:search', (_e, payload) => mods.searchMods(payload));
-  ipcMain.handle('mods:versions', (_e, payload) => mods.getModVersions(payload));
-  ipcMain.handle('mods:install', (_e, payload) => mods.installMod(payload));
+  ipcMain.handle('mods:search', async (_e, payload) => {
+    try {
+      return await mods.searchMods(payload || {});
+    } catch (err) {
+      throw new Error(err && err.message ? err.message : String(err));
+    }
+  });
+  ipcMain.handle('mods:versions', async (_e, payload) => {
+    try {
+      return await mods.getModVersions(payload || {});
+    } catch (err) {
+      throw new Error(err && err.message ? err.message : String(err));
+    }
+  });
+  ipcMain.handle('mods:install', async (_e, payload) => {
+    try {
+      return await mods.installMod(payload);
+    } catch (err) {
+      throw new Error(err && err.message ? err.message : String(err));
+    }
+  });
 
   ipcMain.handle('mods:add-file', async (_e, { id }) => {
     const win = getWindow();

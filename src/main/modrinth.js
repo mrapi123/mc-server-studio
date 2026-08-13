@@ -36,15 +36,15 @@ async function getPackVersions(projectId) {
     }));
 }
 
-async function searchMods(query, { loader, mcVersion } = {}) {
-  const facets = [['project_type:mod']];
-  if (loader) facets.push([`categories:${loader}`]);
-  if (mcVersion) facets.push([`versions:${mcVersion}`]);
-  const encoded = encodeURIComponent(JSON.stringify(facets));
-  const data = await fetchJson(
-    `${BASE}/search?query=${encodeURIComponent(query)}&facets=${encoded}&limit=24&index=relevance`
-  );
-  return data.hits.map((h) => ({
+const KNOWN_LOADERS = new Set(['forge', 'fabric', 'quilt', 'neoforge']);
+
+function normalizeLoader(loader) {
+  const l = String(loader || '').toLowerCase().trim();
+  return KNOWN_LOADERS.has(l) ? l : null;
+}
+
+function mapModHit(h) {
+  return {
     source: 'modrinth',
     id: h.project_id,
     slug: h.slug,
@@ -55,14 +55,57 @@ async function searchMods(query, { loader, mcVersion } = {}) {
     author: h.author,
     clientSide: h.client_side,
     serverSide: h.server_side
-  }));
+  };
+}
+
+async function searchMods(query, { loader, mcVersion } = {}) {
+  const q = String(query || '').trim();
+  const loaderNorm = normalizeLoader(loader);
+  const mc = String(mcVersion || '').trim() || null;
+
+  async function run(useLoader, useMc) {
+    const facets = [['project_type:mod']];
+    if (useLoader) facets.push([`categories:${useLoader}`]);
+    if (useMc) facets.push([`versions:${useMc}`]);
+    const encoded = encodeURIComponent(JSON.stringify(facets));
+    const data = await fetchJson(
+      `${BASE}/search?query=${encodeURIComponent(q)}&facets=${encoded}&limit=24&index=relevance`
+    );
+    return (data.hits || []).map(mapModHit);
+  }
+
+  let hits = await run(loaderNorm, mc);
+  // Sıkı filtre 0 sonuç verirse (yanlış loader/sürüm) genişlet
+  if (!hits.length && (loaderNorm || mc)) {
+    hits = await run(loaderNorm, null);
+  }
+  if (!hits.length && loaderNorm) {
+    hits = await run(null, mc);
+  }
+  if (!hits.length && (loaderNorm || mc)) {
+    hits = await run(null, null);
+  }
+  return hits;
 }
 
 async function getModVersions(projectId, { loader, mcVersion } = {}) {
-  const params = [];
-  if (loader) params.push(`loaders=${encodeURIComponent(JSON.stringify([loader]))}`);
-  if (mcVersion) params.push(`game_versions=${encodeURIComponent(JSON.stringify([mcVersion]))}`);
-  const versions = await fetchJson(`${BASE}/project/${projectId}/version?${params.join('&')}`);
+  const loaderNorm = normalizeLoader(loader);
+  const mc = String(mcVersion || '').trim() || null;
+
+  async function run(useLoader, useMc) {
+    const params = [];
+    if (useLoader) params.push(`loaders=${encodeURIComponent(JSON.stringify([useLoader]))}`);
+    if (useMc) params.push(`game_versions=${encodeURIComponent(JSON.stringify([useMc]))}`);
+    const qs = params.length ? `?${params.join('&')}` : '';
+    const versions = await fetchJson(`${BASE}/project/${projectId}/version${qs}`);
+    return versions || [];
+  }
+
+  let versions = await run(loaderNorm, mc);
+  if (!versions.length && (loaderNorm || mc)) versions = await run(loaderNorm, null);
+  if (!versions.length && loaderNorm) versions = await run(null, mc);
+  if (!versions.length && (loaderNorm || mc)) versions = await run(null, null);
+
   return versions.map((v) => ({
     id: v.id,
     name: v.name,

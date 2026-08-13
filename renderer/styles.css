@@ -33,11 +33,16 @@ body {
 
 svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; pointer-events: none; }
 
+/* Sprite sayfayı kaplamasın / tıklama-yazmayı engellemesin */
 #icon-sprite {
-  position: absolute;
-  width: 0;
-  height: 0;
-  overflow: hidden;
+  position: absolute !important;
+  width: 0 !important;
+  height: 0 !important;
+  left: -9999px !important;
+  top: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 #app { display: flex; height: 100vh; }
@@ -181,6 +186,13 @@ svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width:
 
 /* Arama */
 .search-row { display: flex; gap: 10px; margin-bottom: 20px; align-items: stretch; }
+input, textarea, select, .text-field {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  pointer-events: auto !important;
+  -webkit-app-region: no-drag;
+}
+
 .text-field {
   flex: 1;
   min-width: 0;
@@ -192,8 +204,6 @@ svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width:
   font-size: 14px;
   font-family: inherit;
   outline: none;
-  -webkit-user-select: text;
-  user-select: text;
 }
 .text-field:focus {
   border-color: var(--accent-dark);

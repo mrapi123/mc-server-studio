@@ -189,22 +189,51 @@ async function resolveDownloadUrl(modId, fileId, fileName) {
   return `https://edge.forgecdn.net/files/${idStr.slice(0, 4)}/${idStr.slice(4)}/${encodeURIComponent(fileName)}`;
 }
 
+const LOADER_IDS = { forge: 1, fabric: 4, quilt: 5, neoforge: 6 };
+
+function normalizeLoader(loader) {
+  const l = String(loader || '').toLowerCase().trim();
+  return LOADER_IDS[l] ? l : null;
+}
+
 async function searchMods(query, { loader, mcVersion } = {}) {
-  const loaderIds = { forge: 1, fabric: 4, quilt: 5, neoforge: 6 };
-  let url = `/mods/search?gameId=${GAME_MINECRAFT}&classId=${CLASS_MODS}&searchFilter=${encodeURIComponent(query)}&sortField=2&sortOrder=desc&pageSize=24`;
-  if (mcVersion) url += `&gameVersion=${encodeURIComponent(mcVersion)}`;
-  if (loader && loaderIds[loader]) url += `&modLoaderType=${loaderIds[loader]}`;
-  const data = await cfJson(url);
-  return data.data.map(mapMod);
+  const q = String(query || '').trim();
+  const loaderNorm = normalizeLoader(loader);
+  const mc = String(mcVersion || '').trim() || null;
+
+  async function run(useLoader, useMc) {
+    let url = `/mods/search?gameId=${GAME_MINECRAFT}&classId=${CLASS_MODS}&searchFilter=${encodeURIComponent(q)}&sortField=2&sortOrder=desc&pageSize=24`;
+    if (useMc) url += `&gameVersion=${encodeURIComponent(useMc)}`;
+    if (useLoader) url += `&modLoaderType=${LOADER_IDS[useLoader]}`;
+    const data = await cfJson(url);
+    return (data.data || []).map(mapMod);
+  }
+
+  let hits = await run(loaderNorm, mc);
+  if (!hits.length && (loaderNorm || mc)) hits = await run(loaderNorm, null);
+  if (!hits.length && loaderNorm) hits = await run(null, mc);
+  if (!hits.length && (loaderNorm || mc)) hits = await run(null, null);
+  return hits;
 }
 
 async function getModVersions(modId, { loader, mcVersion } = {}) {
-  const loaderIds = { forge: 1, fabric: 4, quilt: 5, neoforge: 6 };
-  let url = `/mods/${modId}/files?pageSize=50`;
-  if (mcVersion) url += `&gameVersion=${encodeURIComponent(mcVersion)}`;
-  if (loader && loaderIds[loader]) url += `&modLoaderType=${loaderIds[loader]}`;
-  const data = await cfJson(url);
-  return data.data
+  const loaderNorm = normalizeLoader(loader);
+  const mc = String(mcVersion || '').trim() || null;
+
+  async function run(useLoader, useMc) {
+    let url = `/mods/${modId}/files?pageSize=50`;
+    if (useMc) url += `&gameVersion=${encodeURIComponent(useMc)}`;
+    if (useLoader) url += `&modLoaderType=${LOADER_IDS[useLoader]}`;
+    const data = await cfJson(url);
+    return data.data || [];
+  }
+
+  let files = await run(loaderNorm, mc);
+  if (!files.length && (loaderNorm || mc)) files = await run(loaderNorm, null);
+  if (!files.length && loaderNorm) files = await run(null, mc);
+  if (!files.length && (loaderNorm || mc)) files = await run(null, null);
+
+  return files
     .sort((a, b) => new Date(b.fileDate) - new Date(a.fileDate))
     .map(mapFile);
 }

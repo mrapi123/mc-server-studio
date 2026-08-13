@@ -6,12 +6,12 @@
 
 Modrinth ve CurseForge modpack'lerini indirip kendi bilgisayarında Minecraft sunucusu olarak kuran, üzerine ekstra mod ekleyebileceğin, Aternos tarzı ayarlara sahip masaüstü uygulaması.
 
-**İndir:** [Son sürüm (v1.2.10)](https://github.com/mrapi123/mc-server-studio/releases/latest)
+**İndir:** [Son sürüm (v1.2.11)](https://github.com/mrapi123/mc-server-studio/releases/latest)
 
 | Dosya | Ne işe yarar |
 | --- | --- |
-| `MC.Server.Studio.1.2.10.portable.exe` | Kurulum yok, çift tıkla çalışır |
-| `MC.Server.Studio.Setup.1.2.10.exe` | Kurulum sihirbazı, Başlat menüsüne ekler |
+| `MC.Server.Studio.1.2.11.portable.exe` | Kurulum yok, çift tıkla çalışır |
+| `MC.Server.Studio.Setup.1.2.11.exe` | Kurulum sihirbazı, Başlat menüsüne ekler |
 
 Windows SmartScreen uyarısında **Ek bilgi → Yine de çalıştır** de (uygulama imzasızdır).
 
@@ -19,7 +19,7 @@ Windows SmartScreen uyarısında **Ek bilgi → Yine de çalıştır** de (uygul
 
 ## Özellikler
 
-- **Modpack arama** — Modrinth ve CurseForge (API anahtarı gerekmez)
+- **Mod / modpack arama** — Modrinth ve CurseForge; yazılabilir arama kutuları, boş sonuçta filtre genişletme / CurseForge yedek arama
 - **Tek tıkla kurulum** — Forge / NeoForge / Fabric / Quilt / vanilla; CurseForge'da server pack varsa onu kullanır
 - **İstemci senkronu** — Server pack eksik kaldığında istemci paketinden kalan modları tamamlar (ör. 353 → 469)
 - **Resource pack** — Paketteki uygun resource pack'i yerel HTTP ile oyunculara sunar (Xaero ikon / saf datapack elenir)

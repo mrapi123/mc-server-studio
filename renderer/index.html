@@ -88,10 +88,10 @@
         </div>
 
         <div id="search-panel">
-          <div class="search-row">
-            <input id="search-input" class="text-field" type="text" placeholder="Modpack ara... (örn. Soulrend)" autocomplete="off" spellcheck="false" />
-            <button id="btn-search" class="btn btn-primary" type="button">Ara</button>
-          </div>
+          <form id="pack-search-form" class="search-row" autocomplete="off">
+            <input id="search-input" class="text-field" type="search" placeholder="Modpack ara... (örn. Soulrend)" autocomplete="off" spellcheck="false" tabindex="0" />
+            <button id="btn-search" class="btn btn-primary" type="submit">Ara</button>
+          </form>
           <div id="search-results" class="card-grid"></div>
         </div>
 
@@ -436,10 +436,10 @@
         <button class="tab active" data-source="modrinth"><span class="tab-dot modrinth"></span>Modrinth</button>
         <button class="tab" data-source="curseforge"><span class="tab-dot curseforge"></span>CurseForge</button>
       </div>
-          <div class="search-row">
-            <input id="mod-search-input" class="text-field" type="text" placeholder="Mod ara... (örn. JEI)" autocomplete="off" spellcheck="false" />
-            <button id="btn-mod-search" class="btn btn-primary" type="button">Ara</button>
-          </div>
+      <form id="mod-search-form" class="search-row" autocomplete="off">
+        <input id="mod-search-input" class="text-field" type="search" placeholder="Mod ara... (örn. JEI)" autocomplete="off" spellcheck="false" tabindex="0" />
+        <button id="btn-mod-search" class="btn btn-primary" type="submit">Ara</button>
+      </form>
       <p class="muted small" id="mod-filter-info"></p>
       <div id="mod-search-results" class="mod-results"></div>
       <div class="modal-actions">
