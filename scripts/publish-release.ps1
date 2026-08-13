@@ -6,37 +6,53 @@ $user = Invoke-RestMethod -Uri "https://api.github.com/user" -Headers $headers
 $login = $user.login
 $email = "$($user.id)+$login@users.noreply.github.com"
 $repo = "$login/mc-server-studio"
-$tag = "v1.2.9"
+$tag = "v1.2.10"
 
 git add -A
-git -c user.name="$login" -c user.email="$email" commit -m "v1.2.9: istemci modlarini silme - tam senkron (watut/wakes)"
-if ($LASTEXITCODE -ne 0) { Write-Output "Commit yok" }
+git -c user.name="$login" -c user.email="$email" commit -m "v1.2.10: hard-crash purge, zip-slip korumasi, README"
+if ($LASTEXITCODE -ne 0) { Write-Output "Commit yok (veya zaten commitli)" }
 git push origin main
 
 $body = @"
 ## Degisiklik
-- Istemci pack modlari artik silinmiyor (watut, wakes vb.)
-- Otomatik purge kapatildi
-- Sadece sunucuyu kesin dusturen birkac atlanir (stop_rendering, audioimprovements, sodium/oculus/colorwheel, subtle_effects, particle_core)
+- Hard-crash istemci modlari (Sodium/Iris/Oculus/colorwheel/subtle_effects/stop_rendering...) kurulum sonunda ve sunucu acilisinda temizlenir
+- Animasyon/UI kanal modlari (watut, wakes vb.) korunur — silinmez
+- Zip slip korumasi (mrpack + server pack acma)
+- Spawn hatasinda resource-pack HTTP kapatilir
+- README v1.2.10
 
 ## Not
-Mevcut Better MC'ye eksik jarlar geri kondu; sunucuyu yeniden baslatip baglan.
+Onceki kurulumlarda sorun varsa sunucuyu yeniden baslat; temizlik otomatik calisir.
 "@
 
 $payload = @{
   tag_name = $tag
-  name = "MC Server Studio v1.2.9"
+  name = "MC Server Studio v1.2.10"
   body = $body
   draft = $false
   prerelease = $false
 } | ConvertTo-Json -Depth 5
 
-$rel = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$repo/releases" -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($payload)) -ContentType "application/json; charset=utf-8"
+# Tag varsa release guncelle / yoksa olustur
+$existing = $null
+try {
+  $existing = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/tags/$tag" -Headers $headers
+} catch { }
+
+if ($existing) {
+  $rel = Invoke-RestMethod -Method Patch -Uri "https://api.github.com/repos/$repo/releases/$($existing.id)" -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($payload)) -ContentType "application/json; charset=utf-8"
+  foreach ($old in @($existing.assets)) {
+    Invoke-RestMethod -Method Delete -Uri "https://api.github.com/repos/$repo/releases/assets/$($old.id)" -Headers $headers | Out-Null
+  }
+} else {
+  $rel = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$repo/releases" -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($payload)) -ContentType "application/json; charset=utf-8"
+}
 
 foreach ($a in @(
-  @{ path = "dist\MC Server Studio 1.2.9.exe"; name = "MC.Server.Studio.1.2.9.portable.exe" },
-  @{ path = "dist\MC Server Studio Setup 1.2.9.exe"; name = "MC.Server.Studio.Setup.1.2.9.exe" }
+  @{ path = "dist\MC Server Studio 1.2.10.exe"; name = "MC.Server.Studio.1.2.10.portable.exe" },
+  @{ path = "dist\MC Server Studio Setup 1.2.10.exe"; name = "MC.Server.Studio.Setup.1.2.10.exe" }
 )) {
+  if (-not (Test-Path $a.path)) { throw "Eksik asset: $($a.path)" }
   $url = "https://uploads.github.com/repos/$repo/releases/$($rel.id)/assets?name=$($a.name)"
   Invoke-RestMethod -Method Post -Uri $url -Headers $headers -InFile $a.path -ContentType "application/octet-stream" | Out-Null
 }

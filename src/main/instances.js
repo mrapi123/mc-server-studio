@@ -70,17 +70,29 @@ function newId(name) {
 function extractZipSmart(zipPath, destDir) {
   const zip = new AdmZip(zipPath);
   const entries = zip.getEntries();
-  const roots = new Set(entries.map((e) => e.entryName.split('/')[0]));
-  const singleRoot = roots.size === 1 && entries.every((e) => e.entryName.includes('/'))
+  const roots = new Set(
+    entries
+      .map((e) => e.entryName.replace(/\\/g, '/').split('/')[0])
+      .filter(Boolean)
+  );
+  const normalized = entries.map((e) => ({
+    entry: e,
+    name: e.entryName.replace(/\\/g, '/')
+  }));
+  const singleRoot = roots.size === 1 && normalized.every((e) => e.name.includes('/'))
     ? [...roots][0]
     : null;
 
-  for (const entry of entries) {
+  const destResolved = path.resolve(destDir);
+  for (const { entry, name } of normalized) {
     if (entry.isDirectory) continue;
-    let rel = entry.entryName;
+    let rel = name;
     if (singleRoot) rel = rel.slice(singleRoot.length + 1);
     if (!rel) continue;
-    const target = path.join(destDir, rel);
+    const target = path.resolve(destDir, rel);
+    if (target !== destResolved && !target.startsWith(destResolved + path.sep)) {
+      continue; // zip slip — atla
+    }
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, entry.getData());
   }
@@ -99,9 +111,12 @@ async function installMrpack(mrpackPath, destDir, report) {
   const skipped = (index.files || []).length - files.length;
   report(`${files.length} dosya indirilecek${skipped ? ` (${skipped} client-only mod atlandı)` : ''}...`);
   let done = 0;
+  const destResolved = path.resolve(destDir);
   await runLimited(files, 6, async (f) => {
-    const target = path.join(destDir, f.path);
-    if (target.includes('..')) throw new Error(`Güvensiz dosya yolu: ${f.path}`);
+    const target = path.resolve(destDir, f.path);
+    if (target !== destResolved && !target.startsWith(destResolved + path.sep)) {
+      throw new Error(`Güvensiz dosya yolu: ${f.path}`);
+    }
     await downloadFile(f.downloads[0], target);
     done++;
     const label = resourcepack.isResourcePackPath(f.path) ? 'Resource pack' : 'Dosya';
@@ -167,6 +182,7 @@ async function installCurseForgeManifest(zipPath, destDir, report) {
   await runLimited(files, 4, async (f) => {
     try {
       const fileInfo = await curseforge.getFile(f.projectID, f.fileID);
+      if (resourcepack.isKnownClientOnlyJar(fileInfo.fileName)) return;
       let classId = 6;
       try {
         const mod = await curseforge.getMod(f.projectID);
@@ -225,7 +241,7 @@ async function installCurseForgeManifest(zipPath, destDir, report) {
 /**
  * Server pack'te eksik kalan istemci modlarını (animasyon vb.) client pack manifestinden tamamlar.
  * Saf istemci render modları (Sodium/Iris...) atlanır.
- * CurseForge batch API kullanır — 469 tekil istek yerine ~10 batch (takılma önlenir).
+ * CurseForge: API anahtarı varsa batch; yoksa paralel tekil istek (sıralı 40/469 takılması yok).
  */
 async function syncMissingFromClientPack(clientZipPath, destDir, report) {
   const zip = new AdmZip(clientZipPath);
@@ -357,6 +373,12 @@ async function finalizeInstall(meta, sDir, report) {
     throw new Error(
       'Kurulum tamamlanamadı: ' + err.message
     );
+  }
+
+  // Overrides hard-crash jar geri koymuş olabilir — son temizlik
+  const purged = await resourcepack.purgeClientOnlyMods(sDir);
+  if (purged.length) {
+    report(`${purged.length} hard-crash istemci modu çıkarıldı.`);
   }
 
   // EULA

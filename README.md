@@ -6,12 +6,12 @@
 
 Modrinth ve CurseForge modpack'lerini indirip kendi bilgisayarında Minecraft sunucusu olarak kuran, üzerine ekstra mod ekleyebileceğin, Aternos tarzı ayarlara sahip masaüstü uygulaması.
 
-**İndir:** [Son sürüm (v1.1.0)](https://github.com/mrapi123/mc-server-studio/releases/latest)
+**İndir:** [Son sürüm (v1.2.10)](https://github.com/mrapi123/mc-server-studio/releases/latest)
 
 | Dosya | Ne işe yarar |
 | --- | --- |
-| `MC.Server.Studio.1.1.0.portable.exe` | Kurulum yok, çift tıkla çalışır |
-| `MC.Server.Studio.Setup.1.1.0.exe` | Kurulum sihirbazı, Başlat menüsüne ekler |
+| `MC.Server.Studio.1.2.10.portable.exe` | Kurulum yok, çift tıkla çalışır |
+| `MC.Server.Studio.Setup.1.2.10.exe` | Kurulum sihirbazı, Başlat menüsüne ekler |
 
 Windows SmartScreen uyarısında **Ek bilgi → Yine de çalıştır** de (uygulama imzasızdır).
 
@@ -21,6 +21,9 @@ Windows SmartScreen uyarısında **Ek bilgi → Yine de çalıştır** de (uygul
 
 - **Modpack arama** — Modrinth ve CurseForge (API anahtarı gerekmez)
 - **Tek tıkla kurulum** — Forge / NeoForge / Fabric / Quilt / vanilla; CurseForge'da server pack varsa onu kullanır
+- **İstemci senkronu** — Server pack eksik kaldığında istemci paketinden kalan modları tamamlar (ör. 353 → 469)
+- **Resource pack** — Paketteki uygun resource pack'i yerel HTTP ile oyunculara sunar (Xaero ikon / saf datapack elenir)
+- **Güvenli atlama** — Sunucuyu düşüren render modları (Sodium, Iris/Oculus, colorwheel, subtle_effects, stop_rendering…) indirilmez / temizlenir; animasyon/UI kanalı modları (watut, wakes vb.) korunur
 - **Otomatik Java** — Mojang meta verisine göre gereken sürümü bulur, yoksa Temurin JRE indirir
 - **Ekstra mod** — Modrinth/CurseForge'dan ara veya `.jar` dosyası ekle, aç/kapat, sil
 - **Konsol** — Canlı renkli log, komut gönderme, ↑↓ geçmiş
@@ -40,10 +43,11 @@ mc-server-studio/
 │   ├── main/                 # Electron ana süreç
 │   │   ├── main.js           # Pencere
 │   │   ├── ipc.js            # Arayüz ↔ süreç köprüsü
-│   │   ├── instances.js      # Sunucu kurulumu / dünya sıfırlama
+│   │   ├── instances.js      # Sunucu kurulumu / istemci senkronu / dünya sıfırlama
 │   │   ├── loaders.js        # Forge / Fabric / Quilt / NeoForge
 │   │   ├── modrinth.js       # Modrinth API
-│   │   ├── curseforge.js     # CurseForge API (curse.tools)
+│   │   ├── curseforge.js     # CurseForge API (curse.tools + paralel/batch)
+│   │   ├── resourcepack.js   # Resource pack yayını + hard-crash mod filtresi
 │   │   ├── java.js           # Java keşfi ve indirme
 │   │   ├── serverproc.js     # Java süreci, konsol, oyuncu takibi
 │   │   ├── players.js        # Whitelist / OP / kayıtlar
@@ -61,7 +65,7 @@ mc-server-studio/
 └── package.json
 ```
 
-Sunucu dosyaları `%APPDATA%/mc-server-studio/instances/` altında tutulur (uygulamadaki klasör butonuyla açılır).
+Sunucu dosyaları `%APPDATA%/MC Server Studio/instances/` altında tutulur (uygulamadaki klasör butonuyla açılır).
 
 ---
 
@@ -90,6 +94,7 @@ npm run test:smoke      # Dış API erişimi
 npm run test:players    # Whitelist / OP / ağ
 npm run test:e2e        # Modrinth paketi kur + sunucu aç
 npm run test:cf         # CurseForge paketi kur + sunucu aç
+npm run test:vanilla    # Vanilla sunucu
 ```
 
 ### Exe paketleme
@@ -104,6 +109,8 @@ npm run dist
 `winCodeSign` sembolik link hatası alırsan Windows Geliştirici Modu'nu aç veya arşivi
 `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0` klasörüne elle aç
 (macOS link hataları yok sayılabilir).
+
+Yayınlamak için: `scripts/publish-release.ps1` (GitHub token gerekir).
 
 ---
 
@@ -138,7 +145,8 @@ Hazır chunk profilleri: Potato (4/4), Dengeli (8/6), Varsayılan (10/10), Yüks
 ## Notlar
 
 - Bazı CurseForge modları üçüncü taraf indirmeye kapalıdır; kurulum sonunda uyarı olarak listelenir, elle eklenebilir.
-- CurseForge API anahtarı isteğe bağlıdır (Ayarlar). Boşsa `api.curse.tools` kullanılır.
+- CurseForge API anahtarı isteğe bağlıdır (Ayarlar). Boşsa `api.curse.tools` kullanılır; anahtar varsa batch API ile daha hızlı senkron.
+- Server pack + istemci senkronu büyük paketlerde (Better MC, Soulrend vb.) eksik mod / “mismatched mod channel” sorununu azaltır.
 - Katkı için [CONTRIBUTING.md](CONTRIBUTING.md) dosyasına bak.
 
 Lisans: [MIT](LICENSE)

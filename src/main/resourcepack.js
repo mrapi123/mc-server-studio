@@ -32,7 +32,8 @@ function isShaderPackPath(filePath) {
  */
 function isKnownClientOnlyJar(fileName) {
   const n = String(fileName || '');
-  return /stop.?rendering|audio.?improvements|subtle.?effects|colorwheel|sodium|iris|rubidium|embeddium|oculus|optifine|xenon|particle.?core/i.test(n);
+  // Kelime sınırı: "irish" / rastgele isimlere yanlış pozitif olmasın
+  return /(?:^|[^a-z0-9])(?:stop.?rendering|audio.?improvements|subtle.?effects|colorwheel|sodium|iris|rubidium|embeddium|oculus|optifine|xenon|particle.?core)(?:[^a-z0-9]|$)/i.test(n);
 }
 
 /** Sunucu resource-pack URL'sine asla konmaması gereken paket adları (harita ikonu vb.). */
@@ -65,11 +66,26 @@ function isClientOnlyByJarMeta(_jarPath) {
 }
 
 /**
- * Artık otomatik silmez (mod kanalı uyumsuzluğu / "server missing mods" önlemek için).
- * Hard-crash listesine dokunmak için bilerek boş bırakıldı.
+ * Yalnızca sunucuyu düşüren hard-crash jar'ları siler (Sodium/Iris/colorwheel…).
+ * Animasyon/UI kanalı modları (watut, wakes vb.) korunur — "server missing mods" olmasın.
  */
-async function purgeClientOnlyMods(_serverDir) {
-  return [];
+async function purgeClientOnlyMods(serverDir) {
+  const modsDir = path.join(serverDir, 'mods');
+  let names = [];
+  try {
+    names = await fsp.readdir(modsDir);
+  } catch (_e) {
+    return [];
+  }
+  const removed = [];
+  for (const name of names) {
+    if (!/\.jar$/i.test(name) || !isKnownClientOnlyJar(name)) continue;
+    try {
+      await fsp.unlink(path.join(modsDir, name));
+      removed.push(name);
+    } catch (_e) { /* kilitliyse atla */ }
+  }
+  return removed;
 }
 
 /** CurseForge classId → hedef klasör (mods / resourcepacks / shaderpacks). */

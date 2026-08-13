@@ -165,6 +165,7 @@ async function start(id) {
   });
   proc.on('error', (err) => {
     pushLog(id, `\n[Hata: ${err.message}]\n`);
+    resourcepack.stopPackServer(id);
     setStatus(id, 'stopped');
   });
 
@@ -173,7 +174,7 @@ async function start(id) {
 
 function sendCommand(id, command) {
   const entry = running.get(id);
-  if (!entry || entry.status === 'stopped') throw new Error('Sunucu çalışmıyor.');
+  if (!entry || !entry.proc || entry.status === 'stopped') throw new Error('Sunucu çalışmıyor.');
   entry.proc.stdin.write(command + '\n');
   pushLog(id, `> ${command}\n`);
 }

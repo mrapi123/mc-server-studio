@@ -5,7 +5,7 @@ const https = require('https');
 const http = require('http');
 const { URL } = require('url');
 
-const USER_AGENT = 'mc-server-studio/1.1.0 (yerel sunucu yoneticisi)';
+const USER_AGENT = `mc-server-studio/${require('../../package.json').version} (yerel sunucu yoneticisi)`;
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
